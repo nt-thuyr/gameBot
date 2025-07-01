@@ -17,7 +17,7 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "104614";
+    private static final String GAME_ID = "189774";
     private static final String PLAYER_NAME = "thuyr";
     private static final String SECRET_KEY = "sk-FgDKAR8dR8-9jufLyCkmwA:WZwQnHWBZddohDzbq_MwfDAJCZOuORtYyCri1-052o0aj2Fd35dWuLY4XOmPgjB810f8OnAQrDWTGvuKUc4lFQ";
 
@@ -32,7 +32,7 @@ public class Main {
                 GameMap gameMap = hero.getGameMap();
                 gameMap.updateOnUpdateMap(args[0]);
 
-                List<Node> restrictedNodes = getRestrictedNodes(gameMap);
+                List<Node> restrictedNodes = getRestrictedNodes(gameMap, hero);
 
                 if (hero.getInventory().getGun() != null && hero.getInventory().getGun().getBullet() == null) {
                     // Ưu tiên nhặt đạn nếu đã có súng mà chưa có đạn
@@ -159,20 +159,52 @@ public class Main {
         }
     }
 
-    public static List<Node> getRestrictedNodes(GameMap gameMap) {
+    public static List<Node> getRestrictedNodes(GameMap gameMap, Hero hero) {
         List<Node> restrictedNodes = new ArrayList<>();
-        for (Enemy enemy : gameMap.getListEnemies()) {
-            if (enemy.getPosition() != null) {
-                restrictedNodes.add(enemy.getPosition());
+
+        boolean isUnarmed = (
+                hero.getInventory().getGun() == null &&
+                        hero.getInventory().getThrowable() == null &&
+                        hero.getInventory().getSpecial() == null &&
+                        "HAND".equals(hero.getInventory().getMelee().getId())
+        );
+
+        // Nếu đang tay không → né enemy nguy hiểm (damage > 20) và vùng xung quanh
+        if (isUnarmed) {
+            for (Enemy enemy : gameMap.getListEnemies()) {
+                if (enemy.getPosition() != null && enemy.getDamage() > 20) {
+                    Node pos = enemy.getPosition();
+
+                    // Thêm vị trí enemy
+                    restrictedNodes.add(pos);
+
+                    // Thêm các ô xung quanh
+                    restrictedNodes.add(new Node(pos.getX() + 1, pos.getY()));
+                    restrictedNodes.add(new Node(pos.getX() - 1, pos.getY()));
+                    restrictedNodes.add(new Node(pos.getX(), pos.getY() + 1));
+                    restrictedNodes.add(new Node(pos.getX(), pos.getY() - 1));
+                }
             }
         }
+
+        // Tránh chướng ngại vật
         for (Obstacle obstacle : gameMap.getListObstacles()) {
             if (obstacle.getPosition() != null) {
                 restrictedNodes.add(obstacle.getPosition());
             }
         }
+
+        // Tránh người chơi khác còn sống
+        for (Player player : gameMap.getOtherPlayerInfo()) {
+            if (player.getPosition() != null && player.getHealth() > 0) {
+                restrictedNodes.add(player.getPosition());
+            }
+        }
+
         return restrictedNodes;
     }
+
+
 
 //    public static void attackWeakestPlayer(Hero hero, GameMap gameMap, List<Node> restrictedNodes) throws IOException, InterruptedException {
 //        // 1. Lấy danh sách tất cả người chơi
