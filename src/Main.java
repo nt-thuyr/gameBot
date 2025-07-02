@@ -276,6 +276,33 @@ public class Main {
         System.out.println("Di chuyển 1 bước về hướng " + step + " để tiếp cận mục tiêu.");
     }
 
+    public static Player selectPlayerTarget(Hero hero, GameMap gameMap) {
+        Player weakest = findWeakestPlayer(gameMap);
+        if (weakest != null && weakest.getHealth() < 100) {
+            return weakest;
+        }
+
+        // Nếu tất cả đều đầy máu hoặc chỉ có weakestPlayer = full HP
+        List<Player> players = gameMap.getOtherPlayerInfo();
+        if (players == null || players.isEmpty()) return null;
+
+        Node myPos = gameMap.getCurrentPlayer().getPosition();
+        Player nearest = null;
+        int minDist = Integer.MAX_VALUE;
+
+        for (Player p : players) {
+            if (p.getHealth() <= 0 || p.getPosition() == null) continue;
+            int dist = distance(myPos, p.getPosition());
+            if (dist < minDist) {
+                minDist = dist;
+                nearest = p;
+            }
+        }
+
+        return nearest;
+    }
+
+
 //    public static void attackWeakestPlayer(Hero hero, GameMap gameMap) throws IOException, InterruptedException {
 //        // 1. Lấy danh sách tất cả người chơi
 //        List<Player> players = gameMap.getOtherPlayerInfo();
