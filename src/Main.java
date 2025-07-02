@@ -191,39 +191,33 @@ public class Main {
         return restrictedNodes;
     }
 
-    public static void attackWeakestPlayer(Hero hero, GameMap gameMap) throws IOException, InterruptedException {
-        // 1. Lấy danh sách tất cả người chơi
+    // Hàm tìm người chơi yếu máu nhất
+    public static Player findWeakestPlayer(GameMap gameMap) {
         List<Player> players = gameMap.getOtherPlayerInfo();
+        if (players == null || players.isEmpty()) return null;
 
-        // 2. Kiểm tra nếu danh sách rỗng
-        if (players == null || players.isEmpty()) {
-            System.out.println("Không tìm thấy người chơi nào trên bản đồ!");
-            return;
-        }
+        Player weakest = null;
+        float minHealth = Float.MAX_VALUE;
 
-        // 3. Lấy vị trí hiện tại của người chơi
-        Node currentPosition = gameMap.getCurrentPlayer().getPosition();
-
-        // 4. Tìm người chơi thấp máu nhất
-        Float minHealth = Float.MAX_VALUE;
-        Node targetNode = null;
-        Player weakestPlayer = null;
-
-        for (Player player : players) {
-            if (player.getPosition() == null || player.getHealth() <= 0) continue;
-            if (player.getHealth() < minHealth) {
-                minHealth = player.getHealth();
-                weakestPlayer = player;
-                targetNode = player.getPosition();
+        for (Player p : players) {
+            if (p.getPosition() == null || p.getHealth() <= 0) continue;
+            if (p.getHealth() < minHealth) {
+                minHealth = p.getHealth();
+                weakest = p;
             }
         }
+        return weakest;
+    }
 
-        if (weakestPlayer == null) {
-            System.out.println("Không tìm thấy người chơi nào hợp lệ để tấn công!");
+    public static void attackTarget(Hero hero, Node targetNode, GameMap gameMap) throws IOException, InterruptedException {
+        if (targetNode == null) {
+            System.out.println("TargetNode không hợp lệ.");
             return;
         }
 
+        Node currentPosition = gameMap.getCurrentPlayer().getPosition();
         int dist = distance(currentPosition, targetNode);
+
         Weapon gun = hero.getInventory().getGun();
         Weapon throwable = hero.getInventory().getThrowable();
         Weapon melee = hero.getInventory().getMelee();
@@ -238,6 +232,7 @@ public class Main {
                 return;
             }
         }
+
         // THROWABLE
         if (throwable != null && dist <= throwable.getRange() && isStraightLine(currentPosition, targetNode)) {
             String direction = getStraightDirection(currentPosition, targetNode);
@@ -247,6 +242,7 @@ public class Main {
                 return;
             }
         }
+
         // SPECIAL
         if (special != null && dist <= special.getRange() && isStraightLine(currentPosition, targetNode)) {
             String direction = getStraightDirection(currentPosition, targetNode);
@@ -256,29 +252,118 @@ public class Main {
                 return;
             }
         }
-        // MELEE
+
+        // MELEE – Chỉ dùng khi sát bên
         if (melee != null && !"HAND".equals(melee.getId()) && dist == 1) {
             String direction = getDirection(currentPosition, targetNode);
             hero.attack(direction);
-            System.out.println("Tấn công cận chiến về hướng " + direction);
+            System.out.println("Tấn công cận chiến vào mục tiêu ở hướng " + direction);
             return;
         }
 
-        System.out.println("Không đủ điều kiện tấn công!");
+        System.out.println("Không thể tấn công mục tiêu!");
 
-        // Nếu chưa trong phạm vi, di chuyển 1 bước về phía mục tiêu
-        // Tìm đường đi ngắn nhất
+        // Di chuyển nếu không đủ điều kiện tấn công
         List<Node> restrictedNodes = getRestrictedNodes(gameMap);
         String path = getShortestPath(gameMap, restrictedNodes, currentPosition, targetNode, false);
         if (path == null || path.isEmpty()) {
-            System.out.println("Không tìm thấy đường đi đến người chơi gần nhất!");
+            System.out.println("Không tìm thấy đường đi đến mục tiêu!");
             return;
         }
-        // Chỉ di chuyển 1 bước đầu tiên trong path
+
         String step = path.substring(0, 1);
         hero.move(step);
         System.out.println("Di chuyển 1 bước về hướng " + step + " để tiếp cận mục tiêu.");
     }
+
+//    public static void attackWeakestPlayer(Hero hero, GameMap gameMap) throws IOException, InterruptedException {
+//        // 1. Lấy danh sách tất cả người chơi
+//        List<Player> players = gameMap.getOtherPlayerInfo();
+//
+//        // 2. Kiểm tra nếu danh sách rỗng
+//        if (players == null || players.isEmpty()) {
+//            System.out.println("Không tìm thấy người chơi nào trên bản đồ!");
+//            return;
+//        }
+//
+//        // 3. Lấy vị trí hiện tại của người chơi
+//        Node currentPosition = gameMap.getCurrentPlayer().getPosition();
+//
+//        // 4. Tìm người chơi thấp máu nhất
+//        Float minHealth = Float.MAX_VALUE;
+//        Node targetNode = null;
+//        Player weakestPlayer = null;
+//
+//        for (Player player : players) {
+//            if (player.getPosition() == null || player.getHealth() <= 0) continue;
+//            if (player.getHealth() < minHealth) {
+//                minHealth = player.getHealth();
+//                weakestPlayer = player;
+//                targetNode = player.getPosition();
+//            }
+//        }
+//
+//        if (weakestPlayer == null) {
+//            System.out.println("Không tìm thấy người chơi nào hợp lệ để tấn công!");
+//            return;
+//        }
+//
+//        int dist = distance(currentPosition, targetNode);
+//        Weapon gun = hero.getInventory().getGun();
+//        Weapon throwable = hero.getInventory().getThrowable();
+//        Weapon melee = hero.getInventory().getMelee();
+//        Weapon special = hero.getInventory().getSpecial();
+//
+//        // GUN
+//        if (gun != null && gun.getBullet() != null && dist <= gun.getRange() && isStraightLine(currentPosition, targetNode)) {
+//            String direction = getStraightDirection(currentPosition, targetNode);
+//            if (direction != null) {
+//                hero.shoot(direction);
+//                System.out.println("Bắn súng về hướng " + direction);
+//                return;
+//            }
+//        }
+//        // THROWABLE
+//        if (throwable != null && dist <= throwable.getRange() && isStraightLine(currentPosition, targetNode)) {
+//            String direction = getStraightDirection(currentPosition, targetNode);
+//            if (direction != null) {
+//                hero.throwItem(direction, dist);
+//                System.out.println("Ném vật phẩm về hướng " + direction);
+//                return;
+//            }
+//        }
+//        // SPECIAL
+//        if (special != null && dist <= special.getRange() && isStraightLine(currentPosition, targetNode)) {
+//            String direction = getStraightDirection(currentPosition, targetNode);
+//            if (direction != null) {
+//                hero.useSpecial(direction);
+//                System.out.println("Dùng vũ khí đặc biệt về hướng " + direction);
+//                return;
+//            }
+//        }
+//        // MELEE
+//        if (melee != null && !"HAND".equals(melee.getId()) && dist == 1) {
+//            String direction = getDirection(currentPosition, targetNode);
+//            hero.attack(direction);
+//            System.out.println("Tấn công cận chiến về hướng " + direction);
+//            return;
+//        }
+//
+//        System.out.println("Không đủ điều kiện tấn công!");
+//
+//        // Nếu chưa trong phạm vi, di chuyển 1 bước về phía mục tiêu
+//        // Tìm đường đi ngắn nhất
+//        List<Node> restrictedNodes = getRestrictedNodes(gameMap);
+//        String path = getShortestPath(gameMap, restrictedNodes, currentPosition, targetNode, false);
+//        if (path == null || path.isEmpty()) {
+//            System.out.println("Không tìm thấy đường đi đến người chơi gần nhất!");
+//            return;
+//        }
+//        // Chỉ di chuyển 1 bước đầu tiên trong path
+//        String step = path.substring(0, 1);
+//        hero.move(step);
+//        System.out.println("Di chuyển 1 bước về hướng " + step + " để tiếp cận mục tiêu.");
+//    }
 
     // Hàm xác định hướng (direction) từ node hiện tại đến node mục tiêu
     public static String getDirection(Node from, Node to) {
