@@ -3,8 +3,6 @@ import jsclub.codefest.sdk.base.Node;
 import jsclub.codefest.sdk.model.Element;
 import jsclub.codefest.sdk.model.GameMap;
 import jsclub.codefest.sdk.Hero;
-import jsclub.codefest.sdk.model.armors.Armor;
-import jsclub.codefest.sdk.model.healing_items.HealingItem;
 import jsclub.codefest.sdk.model.npcs.Enemy;
 import jsclub.codefest.sdk.model.obstacles.Obstacle;
 import jsclub.codefest.sdk.model.players.Player;
@@ -210,7 +208,7 @@ public class Main {
         Weapon special = hero.getInventory().getSpecial();
 
         // GUN
-        if (gun != null && gun.getBullet() != null && dist <= gun.getRange() && isStraightLine(currentPosition, targetNode)) {
+        if (gun != null && dist <= rangeCalculator(gun.getRange()) && isStraightLine(currentPosition, targetNode)) {
             String direction = getStraightDirection(currentPosition, targetNode);
             if (direction != null) {
                 hero.shoot(direction);
@@ -220,17 +218,17 @@ public class Main {
         }
 
         // THROWABLE
-        if (throwable != null && dist <= throwable.getRange() && isStraightLine(currentPosition, targetNode)) {
+        if (throwable != null && dist <= rangeCalculator(throwable.getRange()) && isStraightLine(currentPosition, targetNode)) {
             String direction = getStraightDirection(currentPosition, targetNode);
             if (direction != null) {
-                hero.throwItem(direction, dist);
+                hero.throwItem(direction);
                 System.out.println("Ném vật phẩm về hướng " + direction);
                 return;
             }
         }
 
         // SPECIAL
-        if (special != null && dist <= special.getRange() && isStraightLine(currentPosition, targetNode)) {
+        if (special != null && dist <= rangeCalculator(special.getRange()) && isStraightLine(currentPosition, targetNode)) {
             String direction = getStraightDirection(currentPosition, targetNode);
             if (direction != null) {
                 hero.useSpecial(direction);
@@ -325,7 +323,7 @@ public class Main {
 
     public static void pickupItemAround(Hero hero, GameMap gameMap, Node center) throws IOException, InterruptedException {
         Node currentPosition = gameMap.getCurrentPlayer().getPosition();
-        List<Element> items = new ArrayList<>(gameMap.getListHealingItems());
+        List<Element> items = new ArrayList<>(gameMap.getListSupportItems());
         items.addAll(gameMap.getListWeapons());
         items.addAll(gameMap.getListArmors());
 
@@ -356,7 +354,7 @@ public class Main {
     }
 
     private static boolean hasPickupableItemAround(Node center, GameMap gameMap) {
-        List<Element> items = new ArrayList<>(gameMap.getListHealingItems());
+        List<Element> items = new ArrayList<>(gameMap.getListSupportItems());
         items.addAll(gameMap.getListWeapons());
         items.addAll(gameMap.getListArmors());
         for (Element item : items) {
@@ -370,5 +368,13 @@ public class Main {
     // Kiểm tra chỉ số của item xem có nên nhặt không
     private static boolean pickupable(Element item) {
         return true;
+    }
+
+    private static int rangeCalculator(int[] x) {
+        int range = 0;
+        for (int i : x) {
+            range += i * i;
+        }
+        return (int) Math.sqrt(range);
     }
 }
