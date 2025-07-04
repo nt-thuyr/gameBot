@@ -1,11 +1,12 @@
 import io.socket.emitter.Emitter;
 import jsclub.codefest.sdk.base.Node;
+import jsclub.codefest.sdk.model.Element;
 import jsclub.codefest.sdk.model.GameMap;
 import jsclub.codefest.sdk.Hero;
 import jsclub.codefest.sdk.model.npcs.Enemy;
 import jsclub.codefest.sdk.model.obstacles.Obstacle;
 import jsclub.codefest.sdk.model.players.Player;
-import jsclub.codefest.sdk.model.weapon.Bullet;
+import jsclub.codefest.sdk.model.support_items.SupportItem;
 import jsclub.codefest.sdk.model.weapon.Weapon;
 
 import java.io.IOException;
@@ -16,12 +17,13 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "178994";
+    private static final String GAME_ID = "115663";
     private static final String PLAYER_NAME = "thuyr";
     private static final String SECRET_KEY = "sk-bYZnqgHmR2GpG4ft9sTGiw:VPnqplsOhg3-sHpdn2C74nII8YdFlYIJjAVK9ynHS8tdJPlr5whr2ndgLZe9sC2qlfVyOw_65WxXwzSjBu0K8Q";
 
     public static void main(String[] args) throws IOException {
         Hero hero = new Hero(GAME_ID, PLAYER_NAME, SECRET_KEY);
+        float maxHealth = hero.getGameMap().getCurrentPlayer().getHealth();
 
         Emitter.Listener onMapUpdate = new Emitter.Listener() {
             @Override
@@ -29,43 +31,26 @@ public class Main {
                 GameMap gameMap = hero.getGameMap();
                 gameMap.updateOnUpdateMap(args[0]);
 
-                // Sử dụng vật phẩm hồi máu nếu máu dưới 50
-                if (hero.getInventory().getHealing() != null && hero.getCurrentPlayer().getHealth() < 50) {
+                // Nếu máu dưới 50 và có vật phẩm hỗ trợ, hiển thị danh sách và sử dụng vật phẩm hồi máu phù hợp
+                if (hero.getInventory().getListSupportItem() != null && gameMap.getCurrentPlayer().getHealth() < 50) {
                     try {
-                        hero.useHealing();
-                        System.out.println("Sử dụng vật phẩm hồi máu, máu hiện tại: " + hero.getCurrentPlayer().getHealth());
+                        // Tính số máu hiện tại và máu tối đa
+                        float currentHealth = gameMap.getCurrentPlayer().getHealth();
+                        float lostHp = maxHealth - currentHealth; // Lượng máu cần hồi
+                        // Tìm vật phẩm hồi máu phù hợp nhất
+                        Element healingItem = findBestHealingItem(hero.getInventory().getListSupportItem(), lostHp);
+                        if (healingItem != null) {
+                            hero.useItem(healingItem.getId());
+                            System.out.println("Đã sử dụng vật phẩm hồi máu: " + healingItem + ", máu hiện tại: " + gameMap.getCurrentPlayer().getHealth());
+                        } else {
+                            System.out.println("Không tìm thấy vật phẩm hồi máu phù hợp trong kho");
+                        }
                     } catch (IOException e) {
                         System.out.println("Lỗi khi sử dụng vật phẩm hồi máu: " + e.getMessage());
                     }
-                    // Máu thấp dưới 30, di chuyển đến vị trí ít người
-                } else if (hero.getCurrentPlayer().getHealth() < 30) {
-                    try {
-                        moveToLeastCrowdedPosition(hero, gameMap);
-                        System.out.println("Máu thấp, di chuyển đến vị trí ít người chơi");
-                    } catch (IOException | InterruptedException e) {
-                        System.out.println("Lỗi khi di chuyển đến vị trí ít người: " + e.getMessage());
-                        // Fallback: Chuyển sang tấn công nếu di chuyển thất bại
-                        try {
-                            attackWeakestPlayer(hero, gameMap);
-                        } catch (IOException | InterruptedException ex) {
-                            System.out.println("Lỗi khi tấn công sau thất bại di chuyển: " + ex.getMessage());
-                        }
-                    }
-                    // Ưu tiên nhặt đạn nếu đã có súng mà chưa có đạn
-                } else if (hero.getInventory().getGun() != null && hero.getInventory().getGun().getBullet() == null) {
-                    try {
-                        pickUpNearestBullet(hero, gameMap, true);
-                    } catch (IOException | InterruptedException e) {
-                        System.out.println("Lỗi khi nhặt đạn: " + e.getMessage());
-                        // Fallback: Chuyển sang nhặt vũ khí
-                        try {
-                            pickUpNearestWeapon(hero, gameMap, true);
-                        } catch (IOException | InterruptedException ex) {
-                            System.out.println("Lỗi khi nhặt vũ khí sau thất bại nhặt đạn: " + ex.getMessage());
-                        }
-                    }
-                    // Không có gì cả, đi nhặt vũ khí
-                } else if ("HAND".equals(hero.getInventory().getMelee().getId()) &&
+                }
+
+                if ("HAND".equals(hero.getInventory().getMelee().getId()) &&
                         hero.getInventory().getGun() == null &&
                         hero.getInventory().getThrowable() == null &&
                         hero.getInventory().getSpecial() == null) {
@@ -83,7 +68,7 @@ public class Main {
                     // Đã có vũ khí có thể dùng (gun có đạn, throwable, melee khác HAND)
                 } else {
                     try {
-                        attackWeakestPlayer(hero, gameMap);
+                        attackTarget(hero, findWeakestPlayer(gameMap), gameMap);
                     } catch (IOException | InterruptedException e) {
                         System.out.println("Lỗi khi tấn công người chơi yếu nhất: " + e.getMessage());
                     }
@@ -95,54 +80,31 @@ public class Main {
         hero.start(SERVER_URL);
     }
 
-    private static void pickUpNearestBullet(Hero hero, GameMap gameMap, boolean skipDarkArea) throws IOException, InterruptedException {
-        // 1. Lấy danh sách các hộp đạn trên bản đồ
-        List<Bullet> bullets = gameMap.getListBullets();
-        if (bullets == null || bullets.isEmpty()) {
-            System.out.println("Không tìm thấy hộp đạn nào trên bản đồ!");
-            return;
-        }
+    // Phương thức hỗ trợ để tìm vật phẩm hồi máu phù hợp nhất dựa trên lostHp
+    private static SupportItem findBestHealingItem(List<SupportItem> supportItems, float lostHp) throws IOException {
+        SupportItem bestItem = null;                // Lưu trữ vật phẩm tốt nhất
+        float bestHealingHp = supportItems.get(0).getHealingHP();
 
-        Node currentPosition = gameMap.getCurrentPlayer().getPosition();
-
-        Bullet nearestBullet = null;
-        int minDistance = Integer.MAX_VALUE;
-        Node nearestNode = null;
-
-        int safeZone = gameMap.getSafeZone();
-        int mapSize = gameMap.getMapSize();
-
-        for (Bullet bullet : bullets) {
-            Node bulletNode = bullet.getPosition(); // Sửa từ getPosition thành getPosition()
-            if (skipDarkArea && !checkInsideSafeArea(bulletNode, safeZone, mapSize)) {
-                continue;
-            }
-            int dist = distance(currentPosition, bulletNode);
-            if (dist < minDistance) {
-                minDistance = dist;
-                nearestBullet = bullet;
-                nearestNode = bulletNode;
+        // TH1: nếu có vật phẩm hồi nhiều hơn lượng máu mất
+        for (SupportItem item : supportItems) {
+            if (item.getHealingHP() >= lostHp && item.getHealingHP() < bestHealingHp) {
+                bestItem = item;
+                bestHealingHp = item.getHealingHP();
             }
         }
 
-        if (nearestBullet == null) {
-            System.out.println("Không tìm thấy hộp đạn phù hợp trong vùng an toàn!");
-            return;
+        if (bestItem == null) {
+            for (SupportItem item : supportItems) {
+                if (item.getHealingHP() > bestHealingHp) {
+                    bestItem = item;
+                    bestHealingHp = item.getHealingHP();
+                }
+            }
         }
 
-        List<Node> restrictedNodes = getRestrictedNodes(gameMap);
-        String path = getShortestPath(gameMap, restrictedNodes, currentPosition, nearestNode, skipDarkArea);
-
-        // Nếu không tìm thấy đường đi, kiểm tra lại có phải đã ở vị trí hộp đạn chưa
-        if (path != null && !path.isEmpty()) {
-            hero.move(path);
-            System.out.println("Di chuyển đến đạn: " + path);
-        } else {
-            // Nếu đã đứng trên vị trí hộp đạn thì nhặt luôn, không di chuyển
-            hero.pickupItem();
-            System.out.println("Đang đứng trên hộp đạn, thực hiện nhặt.");
-        }
+        return bestItem; // Trả về vật phẩm tốt nhất hoặc null nếu không có
     }
+
 
     public static void pickUpNearestWeapon(Hero hero, GameMap gameMap, boolean skipDarkArea) throws IOException, InterruptedException {
         List<Weapon> weapons = gameMap.getListWeapons();
@@ -184,8 +146,9 @@ public class Main {
         System.out.println("Path tìm được: " + path);
 
         if (path != null && !path.isEmpty()) {
-            hero.move(path);
-            System.out.println("Di chuyển đến vũ khí: " + path);
+            String step = path.substring(0, 1);
+            hero.move(step);
+            System.out.println("Di chuyển: " + path);
         } else {
             // Nếu đã đứng trên vị trí vũ khí thì nhặt luôn, không di chuyển
             hero.pickupItem();
@@ -195,9 +158,9 @@ public class Main {
 
     public static List<Node> getRestrictedNodes(GameMap gameMap) {
         List<Node> restrictedNodes = new ArrayList<>();
-        // Né enemy trong vùng 3x3 (range = 1) hoặc 7x7 (range = 3) tùy yêu cầu
-        int enemyRange = 1; // Nếu enemy có range = 3
 
+        int enemyRange = 2; // Nếu enemy có range = 1, thì sẽ tránh các 3x3 ô xung quanh nó
+        // set enemyRange = 2 để đề phòng enemy di chuyển đến gần mình
         for (Enemy enemy : gameMap.getListEnemies()) {
             if (enemy.getPosition() != null) {
                 Node pos = enemy.getPosition();
@@ -259,7 +222,7 @@ public class Main {
         Weapon special = hero.getInventory().getSpecial();
 
         // GUN
-        if (gun != null && gun.getBullet() != null && dist <= gun.getRange() && isStraightLine(currentPosition, targetNode)) {
+        if (gun != null && dist <= rangeCalculator(gun.getRange()) && isStraightLine(currentPosition, targetNode)) {
             String direction = getStraightDirection(currentPosition, targetNode);
             if (direction != null) {
                 hero.shoot(direction);
@@ -269,17 +232,17 @@ public class Main {
         }
 
         // THROWABLE
-        if (throwable != null && dist <= throwable.getRange() && isStraightLine(currentPosition, targetNode)) {
+        if (throwable != null && dist <= rangeCalculator(throwable.getRange()) && isStraightLine(currentPosition, targetNode)) {
             String direction = getStraightDirection(currentPosition, targetNode);
             if (direction != null) {
-                hero.throwItem(direction, dist);
+                hero.throwItem(direction);
                 System.out.println("Ném vật phẩm về hướng " + direction);
                 return;
             }
         }
 
         // SPECIAL
-        if (special != null && dist <= special.getRange() && isStraightLine(currentPosition, targetNode)) {
+        if (special != null && dist <= rangeCalculator(special.getRange()) && isStraightLine(currentPosition, targetNode)) {
             String direction = getStraightDirection(currentPosition, targetNode);
             if (direction != null) {
                 hero.useSpecial(direction);
@@ -409,15 +372,15 @@ public class Main {
     public static String getDirection(Node from, Node to) {
         int dx = to.getX() - from.getX();
         int dy = to.getY() - from.getY();
-        if (dx == 0 && dy == 1) return "u";    // đảo lại: dy == 1 là lên
-        if (dx == 0 && dy == -1) return "d";   // đảo lại: dy == -1 là xuống
+        if (dx == 0 && dy == 1) return "u";
+        if (dx == 0 && dy == -1) return "d";
         if (dx == -1 && dy == 0) return "l";
         if (dx == 1 && dy == 0) return "r";
         // Nếu mục tiêu không kề cạnh, ưu tiên hướng chính
         if (Math.abs(dx) > Math.abs(dy)) {
             return dx > 0 ? "r" : "l";
         } else if (Math.abs(dy) > 0) {
-            return dy > 0 ? "u" : "d";  // đảo tương tự cho hướng xa
+            return dy > 0 ? "u" : "d";
         }
         return "d"; // fallback
     }
@@ -434,5 +397,92 @@ public class Main {
 
     public static boolean isStraightLine(Node from, Node to) {
         return from.getX() == to.getX() || from.getY() == to.getY();
+    }
+
+    public static void openDragonEgg(Hero hero, GameMap gameMap, Obstacle egg) throws IOException, InterruptedException {
+        if (egg == null || egg.getPosition() == null) {
+            System.out.println("Rương rồng không hợp lệ hoặc không có vị trí.");
+            return;
+        }
+
+        Node currentPosition = gameMap.getCurrentPlayer().getPosition();
+        Node eggPosition = egg.getPosition();
+
+        int dist = distance(currentPosition, eggPosition);
+
+        if (dist == 1) {
+            // Ưu tiên tấn công cận chiến
+            String direction = getDirection(currentPosition, eggPosition);
+            hero.attack(direction);
+            System.out.println("Tấn công rương rồng ở hướng " + direction);
+        } else {
+            // Nếu không ở gần, di chuyển đến rương
+            List<Node> restrictedNodes = getRestrictedNodes(gameMap);
+            String path = getShortestPath(gameMap, restrictedNodes, currentPosition, eggPosition, false);
+            if (path != null && !path.isEmpty()) {
+                String step = path.substring(0, 1);
+                hero.move(step);
+                System.out.println("Di chuyển đến rương rồng: " + path);
+            } else {
+                System.out.println("Không tìm thấy đường đến rương rồng!");
+            }
+        }
+    }
+
+    public static void pickupItemAround(Hero hero, GameMap gameMap, Node center) throws IOException, InterruptedException {
+        Node currentPosition = gameMap.getCurrentPlayer().getPosition();
+        List<Element> items = new ArrayList<>(gameMap.getListSupportItems());
+        items.addAll(gameMap.getListWeapons());
+        items.addAll(gameMap.getListArmors());
+
+        Element nearestItem = null;
+        int minDist = Integer.MAX_VALUE;
+        for (Element item : items) {
+            if (item.getPosition() != null && pickupable(item)) {
+                int dist = distance(center, item.getPosition());
+                if (dist < minDist && dist <= 5) {
+                    minDist = dist;
+                    nearestItem = item;
+                }
+            }
+        }
+
+        if (nearestItem != null) {
+            List<Node> restrictedNodes = getRestrictedNodes(gameMap);
+            String path = getShortestPath(gameMap, restrictedNodes, currentPosition, nearestItem.getPosition(), false);
+            if (path != null && !path.isEmpty()) {
+                String step = path.substring(0, 1);
+                hero.move(step);
+                System.out.println("Di chuyển đến vật phẩm: " + path);
+            } else {
+                hero.pickupItem();
+                System.out.println("Đã nhặt vật phẩm: " + nearestItem.getId());
+            }
+        }
+    }
+
+    private static boolean hasPickupableItemAround(Node center, GameMap gameMap) {
+        List<Element> items = new ArrayList<>(gameMap.getListSupportItems());
+        items.addAll(gameMap.getListWeapons());
+        items.addAll(gameMap.getListArmors());
+        for (Element item : items) {
+            if (item.getPosition() != null && distance(center, item.getPosition()) <= 5) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Kiểm tra chỉ số của item xem có nên nhặt không
+    private static boolean pickupable(Element item) {
+        return true;
+    }
+
+    private static int rangeCalculator(int[] x) {
+        int range = 0;
+        for (int i : x) {
+            range += i * i;
+        }
+        return (int) Math.sqrt(range);
     }
 }
