@@ -7,6 +7,6 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="CodeFest" level="project" />
+    <orderEntry type="library" name="CodeFest" level="application" />
   </component>
 </module>

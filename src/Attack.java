@@ -16,6 +16,16 @@ public class Attack {
         return from.getX() == to.getX() || from.getY() == to.getY();
     }
 
+    public static String getStraightDirection(Node from, Node to) {
+        if (from.getX() == to.getX()) {
+            return (to.getY() > from.getY()) ? "u" : "d";
+        }
+        if (from.getY() == to.getY()) {
+            return (to.getX() > from.getX()) ? "r" : "l";
+        }
+        return null; // không cùng hàng/cột
+    }
+
     private static int rangeCalculator(int[] x) {
         int range = 0;
         for (int i : x) {
@@ -59,7 +69,7 @@ public class Attack {
 
         // GUN
         if (gun != null && dist <= rangeCalculator(gun.getRange()) && isStraightLine(currentPosition, targetNode)) {
-            String direction = Main.getStraightDirection(currentPosition, targetNode);
+            String direction = getStraightDirection(currentPosition, targetNode);
             if (direction != null) {
                 hero.shoot(direction);
                 System.out.println("Bắn súng về hướng " + direction);
@@ -69,7 +79,7 @@ public class Attack {
 
         // THROWABLE
         if (throwable != null && dist <= rangeCalculator(throwable.getRange()) && isStraightLine(currentPosition, targetNode)) {
-            String direction = Main.getStraightDirection(currentPosition, targetNode);
+            String direction = getStraightDirection(currentPosition, targetNode);
             if (direction != null) {
                 hero.throwItem(direction);
                 System.out.println("Ném vật phẩm về hướng " + direction);
@@ -79,7 +89,7 @@ public class Attack {
 
         // SPECIAL
         if (special != null && dist <= rangeCalculator(special.getRange()) && isStraightLine(currentPosition, targetNode)) {
-            String direction = Main.getStraightDirection(currentPosition, targetNode);
+            String direction = getStraightDirection(currentPosition, targetNode);
             if (direction != null) {
                 hero.useSpecial(direction);
                 System.out.println("Dùng vũ khí đặc biệt về hướng " + direction);
@@ -88,7 +98,7 @@ public class Attack {
         }
 
         // MELEE – Chỉ dùng khi sát bên
-        if (melee != null && !"HAND".equals(melee.getId()) && dist == 1) {
+        if (!"HAND".equals(melee.getId()) && dist == 1) {
             String direction = Main.getDirection(currentPosition, targetNode);
             hero.attack(direction);
             System.out.println("Tấn công cận chiến vào mục tiêu ở hướng " + direction);

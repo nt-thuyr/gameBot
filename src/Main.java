@@ -3,9 +3,11 @@ import jsclub.codefest.sdk.base.Node;
 import jsclub.codefest.sdk.model.Element;
 import jsclub.codefest.sdk.model.GameMap;
 import jsclub.codefest.sdk.Hero;
+import jsclub.codefest.sdk.model.Inventory;
 import jsclub.codefest.sdk.model.npcs.Enemy;
 import jsclub.codefest.sdk.model.obstacles.Obstacle;
 import jsclub.codefest.sdk.model.players.Player;
+import jsclub.codefest.sdk.model.support_items.SupportItem;
 import jsclub.codefest.sdk.model.weapon.Weapon;
 
 import java.io.IOException;
@@ -22,8 +24,6 @@ public class Main {
     private static final String SECRET_KEY = "sk-bYZnqgHmR2GpG4ft9sTGiw:VPnqplsOhg3-sHpdn2C74nII8YdFlYIJjAVK9ynHS8tdJPlr5whr2ndgLZe9sC2qlfVyOw_65WxXwzSjBu0K8Q";
 
     private static Node lastEggPosition = null;
-
-
 
     public static void main(String[] args) throws IOException {
         Hero hero = new Hero(GAME_ID, PLAYER_NAME, SECRET_KEY);
@@ -197,18 +197,6 @@ public class Main {
         return "d"; // fallback
     }
 
-    public static String getStraightDirection(Node from, Node to) {
-        if (from.getX() == to.getX()) {
-            return (to.getY() > from.getY()) ? "u" : "d";
-        }
-        if (from.getY() == to.getY()) {
-            return (to.getX() > from.getX()) ? "r" : "l";
-        }
-        return null; // không cùng hàng/cột
-    }
-
-
-
     public static void openDragonEgg(Hero hero, GameMap gameMap, Obstacle egg) throws IOException, InterruptedException {
         if (egg == null || egg.getPosition() == null) {
             System.out.println("Rương rồng không hợp lệ hoặc không có vị trí.");
@@ -287,6 +275,4 @@ public class Main {
     private static boolean pickupable(Element item) {
         return true;
     }
-
-
 }
