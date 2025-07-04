@@ -1,15 +1,11 @@
 import io.socket.emitter.Emitter;
 import jsclub.codefest.sdk.base.Node;
 import jsclub.codefest.sdk.model.Element;
-import jsclub.codefest.sdk.model.ElementType;
 import jsclub.codefest.sdk.model.GameMap;
 import jsclub.codefest.sdk.Hero;
-import jsclub.codefest.sdk.model.Inventory;
-import jsclub.codefest.sdk.model.armors.Armor;
 import jsclub.codefest.sdk.model.npcs.Enemy;
 import jsclub.codefest.sdk.model.obstacles.Obstacle;
 import jsclub.codefest.sdk.model.players.Player;
-import jsclub.codefest.sdk.model.support_items.SupportItem;
 import jsclub.codefest.sdk.model.weapon.Weapon;
 
 import java.io.IOException;
@@ -21,14 +17,18 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "111753";
+    private static final String GAME_ID = "115663";
     private static final String PLAYER_NAME = "thuyr";
     private static final String SECRET_KEY = "sk-bYZnqgHmR2GpG4ft9sTGiw:VPnqplsOhg3-sHpdn2C74nII8YdFlYIJjAVK9ynHS8tdJPlr5whr2ndgLZe9sC2qlfVyOw_65WxXwzSjBu0K8Q";
-    
+
     private static Node lastEggPosition = null;
+
+
 
     public static void main(String[] args) throws IOException {
         Hero hero = new Hero(GAME_ID, PLAYER_NAME, SECRET_KEY);
+
+        Attack attack = new Attack();
 
         Emitter.Listener onMapUpdate = new Emitter.Listener() {
             @Override
@@ -86,7 +86,7 @@ public class Main {
                 } else {
                     // Đã có vũ khí có thể dùng (gun có đạn, throwable, melee khác HAND)
                     try {
-                        attackTarget(hero, findWeakestPlayer(gameMap), gameMap);
+                        attack.attackTarget(hero, attack.findWeakestPlayer(gameMap), gameMap);
                     } catch (IOException | InterruptedException e) {
                         throw new RuntimeException(e);
                     }
@@ -179,90 +179,6 @@ public class Main {
         return restrictedNodes;
     }
 
-    // Hàm tìm người chơi yếu máu nhất
-    public static Player findWeakestPlayer(GameMap gameMap) {
-        List<Player> players = gameMap.getOtherPlayerInfo();
-        if (players == null || players.isEmpty()) return null;
-
-        Player weakest = null;
-        float minHealth = Float.MAX_VALUE;
-
-        for (Player p : players) {
-            if (p.getPosition() == null || p.getHealth() <= 0) continue;
-            if (p.getHealth() < minHealth) {
-                minHealth = p.getHealth();
-                weakest = p;
-            }
-        }
-        return weakest;
-    }
-
-    public static void attackTarget(Hero hero, Node targetNode, GameMap gameMap) throws IOException, InterruptedException {
-        if (targetNode == null) {
-            System.out.println("TargetNode không hợp lệ.");
-            return;
-        }
-
-        Node currentPosition = gameMap.getCurrentPlayer().getPosition();
-        int dist = distance(currentPosition, targetNode);
-
-        Weapon gun = hero.getInventory().getGun();
-        Weapon throwable = hero.getInventory().getThrowable();
-        Weapon melee = hero.getInventory().getMelee();
-        Weapon special = hero.getInventory().getSpecial();
-
-        // GUN
-        if (gun != null && dist <= rangeCalculator(gun.getRange()) && isStraightLine(currentPosition, targetNode)) {
-            String direction = getStraightDirection(currentPosition, targetNode);
-            if (direction != null) {
-                hero.shoot(direction);
-                System.out.println("Bắn súng về hướng " + direction);
-                return;
-            }
-        }
-
-        // THROWABLE
-        if (throwable != null && dist <= rangeCalculator(throwable.getRange()) && isStraightLine(currentPosition, targetNode)) {
-            String direction = getStraightDirection(currentPosition, targetNode);
-            if (direction != null) {
-                hero.throwItem(direction);
-                System.out.println("Ném vật phẩm về hướng " + direction);
-                return;
-            }
-        }
-
-        // SPECIAL
-        if (special != null && dist <= rangeCalculator(special.getRange()) && isStraightLine(currentPosition, targetNode)) {
-            String direction = getStraightDirection(currentPosition, targetNode);
-            if (direction != null) {
-                hero.useSpecial(direction);
-                System.out.println("Dùng vũ khí đặc biệt về hướng " + direction);
-                return;
-            }
-        }
-
-        // MELEE – Chỉ dùng khi sát bên
-        if (melee != null && !"HAND".equals(melee.getId()) && dist == 1) {
-            String direction = getDirection(currentPosition, targetNode);
-            hero.attack(direction);
-            System.out.println("Tấn công cận chiến vào mục tiêu ở hướng " + direction);
-            return;
-        }
-
-        System.out.println("Không thể tấn công mục tiêu!");
-
-        // Di chuyển nếu không đủ điều kiện tấn công
-        List<Node> restrictedNodes = getRestrictedNodes(gameMap);
-        String path = getShortestPath(gameMap, restrictedNodes, currentPosition, targetNode, false);
-        if (path == null || path.isEmpty()) {
-            System.out.println("Không tìm thấy đường đi đến mục tiêu!");
-            return;
-        }
-
-        String step = path.substring(0, 1);
-        hero.move(step);
-        System.out.println("Di chuyển 1 bước về hướng " + step + " để tiếp cận mục tiêu.");
-    }
 
     // Hàm xác định hướng (direction) từ node hiện tại đến node mục tiêu
     public static String getDirection(Node from, Node to) {
@@ -291,9 +207,7 @@ public class Main {
         return null; // không cùng hàng/cột
     }
 
-    public static boolean isStraightLine(Node from, Node to) {
-        return from.getX() == to.getX() || from.getY() == to.getY();
-    }
+
 
     public static void openDragonEgg(Hero hero, GameMap gameMap, Obstacle egg) throws IOException, InterruptedException {
         if (egg == null || egg.getPosition() == null) {
@@ -333,27 +247,14 @@ public class Main {
 
         Element nearestItem = null;
         int minDist = Integer.MAX_VALUE;
-        int dist;
         for (Element item : items) {
-            if (item instanceof Armor || item instanceof Weapon) {
-                if (item.getPosition() != null && pickupable(hero, item)) {
-                    dist = distance(center, item.getPosition());
-                    if (dist < minDist && dist <= 5) {
-                        minDist = dist;
-                        nearestItem = item;
-                    }
+            if (item.getPosition() != null && pickupable(item)) {
+                int dist = distance(center, item.getPosition());
+                if (dist < minDist && dist <= 5) {
+                    minDist = dist;
+                    nearestItem = item;
                 }
             }
-            if (item instanceof SupportItem supportItem) {
-                if (hero.getInventory().getListSupportItem().size() < 5 || pickupable(hero, supportItem) != null) {
-                    dist = distance(center, supportItem.getPosition());
-                    if (dist < minDist && dist <= 5) {
-                        minDist = dist;
-                        nearestItem = supportItem;
-                    }
-                }
-            }
-
         }
 
         if (nearestItem != null) {
@@ -383,59 +284,9 @@ public class Main {
     }
 
     // Kiểm tra chỉ số của item xem có nên nhặt không
-    private static boolean pickupable(Hero hero, Element item) {
-        Inventory inventory = hero.getInventory();
-        if (item instanceof Weapon weapon) {
-            if (weapon.getType().equals(ElementType.MELEE)) {
-                return inventory.getMelee().getId().equals("HAND") || weapon.getDamage() >= inventory.getMelee().getDamage(); // Nhặt vũ khí MELEE
-            } else if (weapon.getType().equals(ElementType.GUN)) {
-                return inventory.getGun() == null || weapon.getDamage() >= inventory.getGun().getDamage(); // Nhặt vũ khí GUN
-            } else if (weapon.getType().equals(ElementType.THROWABLE)) {
-                return inventory.getThrowable() == null || weapon.getDamage() >= inventory.getThrowable().getDamage(); // Nhặt vũ khí THROWABLE
-            } else if (weapon.getType().equals(ElementType.SPECIAL)) {
-                return inventory.getSpecial() == null || weapon.getDamage() >= inventory.getSpecial().getDamage(); // Nhặt vũ khí SPECIAL
-            }
-        } else if (item instanceof Armor armor) {
-            if (armor.getType().equals(ElementType.HELMET)) {
-                if (inventory.getHelmet() == null) {
-                    return true; // Nhặt mũ
-                } else if (armor.getDamageReduce() >= inventory.getHelmet().getDamageReduce()) {
-                    return true; // Nhặt mũ nếu mạnh hơn
-                } else return armor.getHealthPoint() >= inventory.getHelmet().getHealthPoint(); // Nhặt mũ nếu HP cao hơn
-            } else if (armor.getType().equals(ElementType.ARMOR)) {
-                if (inventory.getArmor() == null) {
-                    return true; // Nhặt mũ
-                } else if (armor.getDamageReduce() >= inventory.getArmor().getDamageReduce()) {
-                    return true; // Nhặt mũ nếu mạnh hơn
-                } else return armor.getHealthPoint() >= inventory.getArmor().getHealthPoint(); // Nhặt mũ nếu HP cao hơn
-            }
-        }
-        return false;
+    private static boolean pickupable(Element item) {
+        return true;
     }
 
-    private static SupportItem pickupable(Hero hero, SupportItem item) {
-        Inventory inventory = hero.getInventory();
 
-        int minHealingHP = 0;
-        SupportItem minSupportItem = null;
-
-        if (inventory.getListSupportItem().size() >= 4) {
-            for (SupportItem invSupportItem : inventory.getListSupportItem()) {
-                if (item.getHealingHP() < invSupportItem.getHealingHP() && invSupportItem.getHealingHP() > minHealingHP) {
-                    minSupportItem = invSupportItem;
-                    minHealingHP = invSupportItem.getHealingHP();
-                }
-            }
-        }
-
-        return minSupportItem;
-    }
-
-    private static int rangeCalculator(int[] x) {
-        int range = 0;
-        for (int i : x) {
-            range += i * i;
-        }
-        return (int) Math.sqrt(range);
-    }
 }
