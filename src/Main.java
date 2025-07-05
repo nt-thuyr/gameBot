@@ -1,11 +1,15 @@
 import io.socket.emitter.Emitter;
 import jsclub.codefest.sdk.base.Node;
 import jsclub.codefest.sdk.model.Element;
+import jsclub.codefest.sdk.model.ElementType;
 import jsclub.codefest.sdk.model.GameMap;
 import jsclub.codefest.sdk.Hero;
+import jsclub.codefest.sdk.model.Inventory;
+import jsclub.codefest.sdk.model.armors.Armor;
 import jsclub.codefest.sdk.model.npcs.Enemy;
 import jsclub.codefest.sdk.model.obstacles.Obstacle;
 import jsclub.codefest.sdk.model.players.Player;
+import jsclub.codefest.sdk.model.support_items.SupportItem;
 import jsclub.codefest.sdk.model.weapon.Weapon;
 
 import java.io.IOException;
@@ -17,13 +21,16 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "115663";
-    private static final String PLAYER_NAME = "thuyr";
+    private static final String GAME_ID = "148104";
+    private static final String PLAYER_NAME = "vicky";
     private static final String SECRET_KEY = "sk-bYZnqgHmR2GpG4ft9sTGiw:VPnqplsOhg3-sHpdn2C74nII8YdFlYIJjAVK9ynHS8tdJPlr5whr2ndgLZe9sC2qlfVyOw_65WxXwzSjBu0K8Q";
 
     private static Node lastEggPosition = null;
 
+    static InventoryManager invManager = new InventoryManager();
 
+    static Node lastChestPosition = null;
+    static Obstacle lastChest = null;
 
     public static void main(String[] args) throws IOException {
         Hero hero = new Hero(GAME_ID, PLAYER_NAME, SECRET_KEY);
@@ -37,60 +44,86 @@ public class Main {
                 GameMap gameMap = hero.getGameMap();
                 gameMap.updateOnUpdateMap(args[0]);
 
-                // Kiểm tra trứng rồng nếu có
-                boolean eggDropped = false;
-                Obstacle egg = null;
+//                // Kiểm tra trứng rồng nếu có
+//                boolean eggDropped = false;
+//                Obstacle egg = null;
+//
+//                List<Obstacle> chests = gameMap.getListObstacles();
+//                for (Obstacle chest : chests) {
+//                    if ("DRAGON_EGG".equals(chest.getId()) && chest.getPosition() != null) {
+//                        egg = chest;
+//                        eggDropped = true;
+//                        break; // Đã tìm thấy egg, thoát vòng lặp
+//                    }
+//                }
+//                if (eggDropped) {
+//                    lastEggPosition = egg.getPosition();
+//                    try {
+//                        openDragonEgg(hero, gameMap, egg);
+//                    } catch (IOException | InterruptedException e) {
+//                        throw new RuntimeException(e);
+//                    }
+//                    return; // QUAN TRỌNG: return để dừng, không làm gì thêm ở tick này!
+//                }
+//                // Nếu vừa phá xong trứng (không còn egg, nhưng lastEggPosition vẫn còn)
+//                if (lastEggPosition != null) {
+//                    // Kiểm tra còn item quanh vị trí lastEggPosition không?
+//                    boolean hasItemNearby = invManager.hasPickupableItemAround(lastEggPosition, gameMap);
+//                    if (hasItemNearby) {
+//                        try {
+//                            pickupItemAround(hero, gameMap, lastEggPosition);
+//                        } catch (IOException | InterruptedException e) {
+//                            throw new RuntimeException(e);
+//                        }
+//                        return; // Ưu tiên nhặt item quanh trứng, xong mới làm việc khác
+//                    } else {
+//                        lastEggPosition = null; // Không còn item quanh trứng, xóa vị trí
+//                    }
+//                }
+//
+//                // Nếu không có egg hoặc đã phá xong egg, làm các hành động khác
+//                if ("HAND".equals(hero.getInventory().getMelee().getId()) && hero.getInventory().getGun() == null
+//                        && hero.getInventory().getThrowable() == null && hero.getInventory().getSpecial() == null) {
+//                    // Không có gì cả, đi nhặt vũ khí
 
-                List<Obstacle> chests = gameMap.getListObstacles();
-                for (Obstacle chest : chests) {
-                    if ("DRAGON_EGG".equals(chest.getId()) && chest.getPosition() != null) {
-                        egg = chest;
-                        eggDropped = true;
-                        break; // Đã tìm thấy egg, thoát vòng lặp
-                    }
-                }
-                if (eggDropped) {
-                    lastEggPosition = egg.getPosition();
+                // 1. Tìm rương còn sống quanh mình
+                Obstacle targetChest = invManager.checkIfHasChest(gameMap, hero);
+                if (targetChest != null) {
+                    lastChestPosition = new Node(targetChest.getX(), targetChest.getY());
+                    lastChest = targetChest;
                     try {
-                        openDragonEgg(hero, gameMap, egg);
-                    } catch (IOException | InterruptedException e) {
-                        throw new RuntimeException(e);
+                        invManager.openChest(gameMap, hero, targetChest);
+                    } catch (IOException e) {
+                        System.out.println("Lỗi khi mo ruong: " + e.getMessage());
                     }
-                    return; // QUAN TRỌNG: return để dừng, không làm gì thêm ở tick này!
+                    return; // QUAN TRỌNG: return luôn để không làm gì khác tick này!
                 }
-                // Nếu vừa phá xong trứng (không còn egg, nhưng lastEggPosition vẫn còn)
-                if (lastEggPosition != null) {
-                    // Kiểm tra còn item quanh vị trí lastEggPosition không?
-                    boolean hasItemNearby = hasPickupableItemAround(lastEggPosition, gameMap);
+
+                // 2. Nếu vừa phá xong rương, còn item quanh rương thì nhặt
+                if (lastChestPosition != null) {
+                    boolean hasItemNearby = invManager.hasPickupableItemAround(lastChestPosition, gameMap);
                     if (hasItemNearby) {
-                        try {
-                            pickupItemAround(hero, gameMap, lastEggPosition);
-                        } catch (IOException | InterruptedException e) {
-                            throw new RuntimeException(e);
-                        }
-                        return; // Ưu tiên nhặt item quanh trứng, xong mới làm việc khác
+                        invManager.lootDroppedItems(gameMap, hero, lastChest);
+                        return; // Ưu tiên nhặt item quanh rương, xong mới làm việc khác
                     } else {
-                        lastEggPosition = null; // Không còn item quanh trứng, xóa vị trí
+                        lastChestPosition = null; // Không còn item quanh, reset
                     }
                 }
 
-                // Nếu không có egg hoặc đã phá xong egg, làm các hành động khác
-                if ("HAND".equals(hero.getInventory().getMelee().getId()) && hero.getInventory().getGun() == null
-                        && hero.getInventory().getThrowable() == null && hero.getInventory().getSpecial() == null) {
-                    // Không có gì cả, đi nhặt vũ khí
-                    try {
-                        pickUpNearestWeapon(hero, gameMap, false);
-                    } catch (IOException | InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
-                } else {
-                    // Đã có vũ khí có thể dùng (gun có đạn, throwable, melee khác HAND)
-                    try {
-                        attack.attackTarget(hero, attack.findWeakestPlayer(gameMap), gameMap);
-                    } catch (IOException | InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
+                try {
+                    pickUpNearestWeapon(hero, gameMap, true);
+                } catch (IOException | InterruptedException e) {
+                    throw new RuntimeException(e);
                 }
+
+//                } else {
+//                    // Đã có vũ khí có thể dùng (gun có đạn, throwable, melee khác HAND)
+//                    try {
+//                        attack.attackTarget(hero, attack.findWeakestPlayer(gameMap), gameMap);
+//                    } catch (IOException | InterruptedException e) {
+//                        throw new RuntimeException(e);
+//                    }
+//                }
             }
         };
 
@@ -114,14 +147,16 @@ public class Main {
         int safeZone = gameMap.getSafeZone();
         int mapSize = gameMap.getMapSize();
 
-        for (Weapon weapon : weapons) {
-            Node weaponNode = weapon.getPosition();
-            if (!skipDarkArea && !checkInsideSafeArea(weaponNode, safeZone, mapSize)) continue;
-            int dist = distance(currentPosition, weaponNode);
-            if (dist < minDistance) {
-                minDistance = dist;
-                nearestWeapon = weapon;
-                nearestNode = weaponNode;
+        for (Element weapon : weapons) {
+            if (InventoryManager.pickupable(hero, weapon)) {
+                Node weaponNode = weapon.getPosition();
+                if (!skipDarkArea && !checkInsideSafeArea(weaponNode, safeZone, mapSize)) continue;
+                int dist = distance(currentPosition, weaponNode);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    nearestWeapon = (Weapon) weapon;
+                    nearestNode = weaponNode;
+                }
             }
         }
 
@@ -141,7 +176,7 @@ public class Main {
             System.out.println("Di chuyển: " + path);
         } else {
             // Nếu đã đứng trên vị trí vũ khí thì nhặt luôn, không di chuyển
-            hero.pickupItem();
+            invManager.swapItem(gameMap, hero);
             System.out.println("Đang đứng trên vũ khí, thực hiện nhặt.");
         }
     }
@@ -248,7 +283,7 @@ public class Main {
         Element nearestItem = null;
         int minDist = Integer.MAX_VALUE;
         for (Element item : items) {
-            if (item.getPosition() != null && pickupable(item)) {
+            if (item.getPosition() != null && invManager.pickupable(hero, item)) {
                 int dist = distance(center, item.getPosition());
                 if (dist < minDist && dist <= 5) {
                     minDist = dist;
@@ -271,22 +306,6 @@ public class Main {
         }
     }
 
-    private static boolean hasPickupableItemAround(Node center, GameMap gameMap) {
-        List<Element> items = new ArrayList<>(gameMap.getListSupportItems());
-        items.addAll(gameMap.getListWeapons());
-        items.addAll(gameMap.getListArmors());
-        for (Element item : items) {
-            if (item.getPosition() != null && distance(center, item.getPosition()) <= 5) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // Kiểm tra chỉ số của item xem có nên nhặt không
-    private static boolean pickupable(Element item) {
-        return true;
-    }
 
 
 }
