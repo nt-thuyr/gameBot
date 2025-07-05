@@ -13,38 +13,28 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.getShortestPath;
 public class Attack {
 
 
-    private static boolean isInsideRange(int[] range, Hero hero, Node target) {
-        Player player = hero.getGameMap().getCurrentPlayer();
-        if (player == null || target == null) return false;
-
-        Node currentPosition = player.getPosition();
-        String direction = Main.getDirection(player, target); // Hướng nhìn của player
-
+    public static boolean isInsideRange(int[] range, Node from, Node to, String direction) {
         int width = range[0];
         int depth = range[1];
-
-        int px = currentPosition.getX();
-        int py = currentPosition.getY();
-        int tx = target.getX();
-        int ty = target.getY();
-
-        // Dịch chuyển sang tọa độ tương đối so với player
-        int dx = tx - px;
-        int dy = ty - py;
+        int px = from.getX();
+        int py = from.getY();
+        int tx = to.getX();
+        int ty = to.getY();
+        int halfWidth = width / 2;
 
         switch (direction) {
-            case "UP":
-                // Phía trước là giảm y
-                return (dy < 0 && dy >= -depth) && (dx >= -width / 2 && dx <= width / 2);
-            case "DOWN":
-                // Phía trước là tăng y
-                return (dy > 0 && dy <= depth) && (dx >= -width / 2 && dx <= width / 2);
-            case "LEFT":
-                // Phía trước là giảm x
-                return (dx < 0 && dx >= -depth) && (dy >= -width / 2 && dy <= width / 2);
-            case "RIGHT":
-                // Phía trước là tăng x
-                return (dx > 0 && dx <= depth) && (dy >= -width / 2 && dy <= width / 2);
+            case "u":
+                // Hướng lên: y tăng
+                return (ty > py && ty <= py + depth) && (tx >= px - halfWidth && tx <= px + halfWidth);
+            case "d":
+                // Hướng xuống: y giảm
+                return (ty < py && ty >= py - depth) && (tx >= px - halfWidth && tx <= px + halfWidth);
+            case "l":
+                // Hướng trái: x giảm
+                return (tx < px && tx >= px - depth) && (ty >= py - halfWidth && ty <= py + halfWidth);
+            case "r":
+                // Hướng phải: x tăng
+                return (tx > px && tx <= px + depth) && (ty >= py - halfWidth && ty <= py + halfWidth);
             default:
                 return false;
         }
@@ -77,6 +67,7 @@ public class Attack {
 
         Node currentPosition = gameMap.getCurrentPlayer().getPosition();
         Node targetNode = targetPlayer.getPosition();
+        String direction = Main.getDirection(currentPosition, targetNode);
 
         Weapon gun = hero.getInventory().getGun();
         Weapon throwable = hero.getInventory().getThrowable();
@@ -84,38 +75,28 @@ public class Attack {
         Weapon special = hero.getInventory().getSpecial();
 
         // GUN
-        if (gun != null && isInsideRange(gun.getRange(), hero, targetNode)) {
-            String direction = Main.getDirection(currentPosition, targetNode);
-            if (direction != null) {
-                hero.shoot(direction);
-                System.out.println("Bắn súng về hướng " + direction);
-                return;
-            }
+        if (gun != null && isInsideRange(gun.getRange(), currentPosition, targetNode, direction)) {
+            hero.shoot(direction);
+            System.out.println("Bắn súng về hướng " + direction);
+            return;
         }
 
         // THROWABLE
-        if (throwable != null && isInsideRange(throwable.getRange(), hero, targetNode)) {
-            String direction = Main.getDirection(currentPosition, targetNode);
-            if (direction != null) {
-                hero.throwItem(direction);
-                System.out.println("Ném vật phẩm về hướng " + direction);
-                return;
-            }
+        if (throwable != null && isInsideRange(throwable.getRange(), currentPosition, targetNode, direction)) {
+            hero.throwItem(direction);
+            System.out.println("Ném vật phẩm về hướng " + direction);
+            return;
         }
 
         // SPECIAL
-        if (special != null && isInsideRange(special.getRange(), hero, targetNode)) {
-            String direction = Main.getDirection(currentPosition, targetNode);
-            if (direction != null) {
-                hero.useSpecial(direction);
-                System.out.println("Dùng vũ khí đặc biệt về hướng " + direction);
-                return;
-            }
+        if (special != null && isInsideRange(special.getRange(), currentPosition, targetNode, direction)) {
+            hero.useSpecial(direction);
+            System.out.println("Dùng vũ khí đặc biệt về hướng " + direction);
+            return;
         }
 
         // MELEE – Chỉ dùng khi sát bên
-        if (melee != null && !"HAND".equals(melee.getId()) && isInsideRange(melee.getRange(), hero, targetNode)) {
-            String direction = Main.getDirection(currentPosition, targetNode);
+        if (melee != null && !"HAND".equals(melee.getId()) && isInsideRange(melee.getRange(), currentPosition, targetNode, direction)) {
             hero.attack(direction);
             System.out.println("Tấn công cận chiến vào mục tiêu ở hướng " + direction);
             return;
@@ -125,7 +106,9 @@ public class Attack {
 
         // Di chuyển nếu không đủ điều kiện tấn công
         List<Node> restrictedNodes = Main.getRestrictedNodes(gameMap);
-        String path = getShortestPath(gameMap, restrictedNodes, currentPosition, targetNode, false);
+        restrictedNodes.remove(targetNode);
+
+        String path = getShortestPath(gameMap, restrictedNodes, currentPosition, targetNode, true);
         if (path == null || path.isEmpty()) {
             System.out.println("Không tìm thấy đường đi đến mục tiêu!");
             return;
