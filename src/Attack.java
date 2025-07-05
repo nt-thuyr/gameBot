@@ -99,13 +99,6 @@ public class Attack {
         Weapon melee = hero.getInventory().getMelee();
         Weapon special = hero.getInventory().getSpecial();
 
-        // GUN
-        if (gun != null && isInsideRange(gun.getRange(), currentPosition, targetNode, direction)) {
-            hero.shoot(direction);
-            System.out.println("Bắn súng về hướng " + direction);
-            return;
-        }
-
         // THROWABLE
         if (throwable != null && isInsideRange(throwable.getRange(), currentPosition, targetNode, direction)) {
             hero.throwItem(direction);
@@ -117,6 +110,13 @@ public class Attack {
         if (special != null && isInsideRange(special.getRange(), currentPosition, targetNode, direction)) {
             hero.useSpecial(direction);
             System.out.println("Dùng vũ khí đặc biệt về hướng " + direction);
+            return;
+        }
+
+        // GUN
+        if (gun != null && isInsideRange(gun.getRange(), currentPosition, targetNode, direction)) {
+            hero.shoot(direction);
+            System.out.println("Bắn súng về hướng " + direction);
             return;
         }
 
