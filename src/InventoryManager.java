@@ -108,8 +108,7 @@ public class InventoryManager {
         } else if (itemToSwap instanceof Weapon weapon) {
             if (pickupable(hero, weapon)) {
                 // Nếu là súng
-                if ("SCEPTER".equals(weapon.getId()) || "CROSSBOW".equals(weapon.getId()) ||
-                        "RUBBER_GUN".equals(weapon.getId()) || "SHOTGUN".equals(weapon.getId())) {
+                if (weapon.getType().equals(ElementType.GUN)) {
                     if (hero.getInventory().getGun() == null) { // Nếu chưa có súng
                         try {
                             hero.pickupItem();
@@ -130,9 +129,8 @@ public class InventoryManager {
                     }
                 }
                 // Nếu là vũ khí ném
-                else if ("BANANA".equals(weapon.getId()) || "SMOKE".equals(weapon.getId()) || "METEORITE_FRAGMENT".equals(weapon.getId()) ||
-                        "METEORITE_FRAGMENT".equals(weapon.getId()) || "CRYSTAL".equals(weapon.getId()) || "SEED".equals(weapon.getId())) {
-                    if (hero.getInventory().getThrowable() == null) { // Nếu chưa có súng
+                else if (weapon.getType().equals(ElementType.THROWABLE)) {
+                    if (hero.getInventory().getThrowable() == null) { // Nếu chưa có vũ khí ném
                         try {
                             hero.pickupItem();
                         } catch (IOException e) {
@@ -142,7 +140,7 @@ public class InventoryManager {
                         try {
                             hero.revokeItem(hero.getInventory().getThrowable().getId());
                         } catch (IOException e) {
-                            System.out.println("Lỗi khi bỏ súng: " + e.getMessage());
+                            System.out.println("Lỗi khi bỏ vũ khí ném: " + e.getMessage());
                         }
 //                        Inventory heroWeapon = hero.getInventory();
 //                        heroWeapon.setThrowable(weapon);
@@ -152,13 +150,12 @@ public class InventoryManager {
                     }
                 }
                 // Nếu là vũ khí cận chiến
-                else if ("KNIFE".equals(weapon.getId()) || "TREE_BRANCH".equals(weapon.getId()) ||
-                        "BONE".equals(weapon.getId()) || "AXE".equals(weapon.getId()) || "MACE".equals(weapon.getId())) {
-                    if (hero.getInventory().getMelee() == null) { // Nếu chưa có cận chiến
+                else if (weapon.getType().equals(ElementType.MELEE)) {
+                    if ("HAND".equals(hero.getInventory().getMelee().getId())) { // Nếu chưa có cận chiến
                         try {
                             hero.pickupItem();
                         } catch (IOException e) {
-                            System.out.println("Lỗi khi nhặt vũ kh cận chiến: " + e.getMessage());
+                            System.out.println("Lỗi khi nhặt vũ khí cận chiến: " + e.getMessage());
                         }
                     } else {
                         try {
@@ -174,8 +171,8 @@ public class InventoryManager {
                     }
                 }
                 // Nếu là vũ khí đặc biệt
-                else if ("ROPE".equals(weapon.getId()) || "BELL".equals(weapon.getId()) || "SAHUR_BAT".equals(weapon.getId())) {
-                    if (hero.getInventory().getSpecial() == null) { // Nếu chưa có súng
+                else if (weapon.getType().equals(ElementType.SPECIAL)) {
+                    if (hero.getInventory().getSpecial() == null) { // Nếu chưa có vũ khí đă biệt
                         try {
                             hero.pickupItem();
                         } catch (IOException e) {
@@ -199,7 +196,7 @@ public class InventoryManager {
             }
         } else if (itemToSwap instanceof Armor armor) {
             if (pickupable(hero, armor)) {
-                if ("ARMOR".equals(armor.getId()) || "MAGIC_ARMOR".equals(armor.getId())) {
+                if (armor.getType().equals(ElementType.ARMOR)) {
                     if (hero.getInventory().getArmor() == null) { // Nếu chưa có áo giáp
                         try {
                             hero.pickupItem();
@@ -216,7 +213,7 @@ public class InventoryManager {
                         System.out.println("Đã bỏ giáp cũ, chờ lượt sau để nhặt " + armor.getId());
                         return;
                     }
-                } else if ("WOODEN_HELMET".equals(armor.getId()) || "MAGIC_HELMET".equals(armor.getId())) {
+                } else if (armor.getType().equals(ElementType.HELMET)) {
                     if (hero.getInventory().getHelmet() == null) { // Nếu chưa có mũ
                         try {
                             hero.pickupItem();
