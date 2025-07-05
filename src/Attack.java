@@ -42,21 +42,46 @@ public class Attack {
 
 
     // Hàm tìm người chơi yếu máu nhất
+    // Tìm player yếu máu nhất, nếu đều bằng nhau thì trả về null
     public static Player findWeakestPlayer(GameMap gameMap) {
         List<Player> players = gameMap.getOtherPlayerInfo();
         if (players == null || players.isEmpty()) return null;
 
         Player weakest = null;
         float minHealth = Float.MAX_VALUE;
+        boolean allEqual = true;
+        Float firstHp = null;
 
         for (Player p : players) {
             if (p.getPosition() == null || p.getHealth() <= 0) continue;
+            if (firstHp == null) firstHp = p.getHealth();
+            else if (p.getHealth() != firstHp) allEqual = false;
+
             if (p.getHealth() < minHealth) {
                 minHealth = p.getHealth();
                 weakest = p;
             }
         }
+        if (allEqual) return null; // nếu tất cả cùng máu, trả về null để xử lý khác
         return weakest;
+    }
+
+    // Tìm player gần nhất
+    public static Player findNearestPlayer(GameMap gameMap, Node currentPosition) {
+        List<Player> players = gameMap.getOtherPlayerInfo();
+        if (players == null || players.isEmpty()) return null;
+
+        Player nearest = null;
+        int minDist = Integer.MAX_VALUE;
+        for (Player p : players) {
+            if (p.getPosition() == null || p.getHealth() <= 0) continue;
+            int dist = distance(currentPosition, p.getPosition());
+            if (dist < minDist) {
+                minDist = dist;
+                nearest = p;
+            }
+        }
+        return nearest;
     }
 
     public static void attackTarget(Hero hero, Player targetPlayer, GameMap gameMap) throws IOException, InterruptedException {
@@ -111,6 +136,8 @@ public class Attack {
         String path = getShortestPath(gameMap, restrictedNodes, currentPosition, targetNode, true);
         if (path == null || path.isEmpty()) {
             System.out.println("Không tìm thấy đường đi đến mục tiêu!");
+            // *** THÊM DÒNG NÀY ***
+            Main.lockedTarget = null; // reset để khỏi tấn công mãi vào chỗ cũ
             return;
         }
 

@@ -17,7 +17,7 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "167561";
+    private static final String GAME_ID = "136944";
     private static final String PLAYER_NAME = "botable";
     private static final String SECRET_KEY = "sk-lw1fb_UIRkKM7HPlasixFQ:4Th0ZK8fcP-HzPtZXAN_iKe62_93eV1tV4wFTeDBnjiW4tJ8BjGgacLMUJxSK2X1DHD1G2BwvZMEncBJ8xgxsg";
 
@@ -39,66 +39,46 @@ public class Main {
                 float currentHealth = gameMap.getCurrentPlayer().getHealth();
                 System.out.println("Current Health: " + currentHealth);
 
-                if (lastChestPosition != null) {
-                    boolean hasItemNearby = InventoryManager.hasPickupableItemAround(lastChestPosition, gameMap, hero);
-                    if (hasItemNearby) {
-                        invManager.lootDroppedItems(gameMap, hero, lastChest);
-                        return;
-                    } else {
-                        lastChestPosition = null;
-                        lastChest = null;
-                    }
+                // ƯU TIÊN LOOT quanh player trước
+                if (lootNearbyItems(hero, gameMap)) {
+                    return;
                 }
 
-                if (hero.getInventory().getListSupportItem().isEmpty()) {
-                    Obstacle targetChest = invManager.getNearestChest(gameMap, hero);
-                    if (targetChest != null) {
-                        lastChestPosition = new Node(targetChest.getX(), targetChest.getY());
-                        lastChest = targetChest;
-                        try {
-                            invManager.openChest(gameMap, hero, targetChest);
-                        } catch (IOException e) {
-                            System.out.println("Lỗi khi mở rương: " + e.getMessage());
-                        }
-                        return;
-                    }
-                }
-
-//                if (hero.getInventory().getGun() == null) {
-//                    try {
-//                        pickUpNearestWeapon(hero, gameMap, true);
-//                    } catch (IOException | InterruptedException e) {
-//                        System.out.println("Lỗi khi nhặt vũ khí: " + e.getMessage());
-//                    }
-//                    return;
-//                }
-
-                // 3. Nếu đang lock target thì tấn công cho đến khi tiêu diệt hoặc không còn tấn công được
-                if (lockedTarget != null && lockedTarget.getHealth() > 0) {
+                if (hero.getInventory().getGun() == null && hero.getInventory().getMelee().getId().equals("HAND")
+                        && hero.getInventory().getThrowable() == null && hero.getInventory().getSpecial() == null) {
                     try {
-                        Attack.attackTarget(hero, lockedTarget, gameMap);
-
-                        Player current = null;
-                        for (Player p : gameMap.getOtherPlayerInfo()) {
-                            if (p.getId().equals(lockedTarget.getId())) {
-                                current = p;
-                                break;
-                            }
-                        }
-                        if (current == null || current.getHealth() <= 0) {
-                            lockedTarget = null;
-                        }
-
+                        pickUpNearestWeapon(hero, gameMap, true);
                     } catch (IOException | InterruptedException e) {
-                        System.out.println("Lỗi khi tấn công target: " + e.getMessage());
+                        System.out.println("Lỗi khi nhặt vũ khí: " + e.getMessage());
                     }
                     return;
-                } else {
-                    lockedTarget = null;
+                }
+
+                // 3. Nếu đang lock target thì tấn công cho đến khi tiêu diệt hoặc không còn tấn công được
+                if (lockedTarget != null) {
+                    // Luôn tìm lại đối tượng player mới nhất theo id
+                    Player current = null;
+                    for (Player p : gameMap.getOtherPlayerInfo()) {
+                        if (p.getId().equals(lockedTarget.getId())) {
+                            current = p;
+                            break;
+                        }
+                    }
+
+                    if (current == null || current.getHealth() <= 0) {
+                        lockedTarget = null;
+                    } else {
+                        try {
+                            Attack.attackTarget(hero, current, gameMap); // Dùng object mới nhất
+                        } catch (IOException | InterruptedException e) {
+                            System.out.println("Lỗi khi tấn công target: " + e.getMessage());
+                        }
+                        return;
+                    }
                 }
 
                 // 4. Nếu máu yếu, ưu tiên hồi máu
-                if (currentHealth < maxHealth * 0.8f) {
+                if (currentHealth < maxHealth * 0.8f && !hero.getInventory().getListSupportItem().isEmpty()) {
                     Element healingItem = findBestHealingItem(hero.getInventory().getListSupportItem(), maxHealth - currentHealth);
                     if (healingItem != null) {
                         try {
@@ -119,6 +99,17 @@ public class Main {
                         Attack.attackTarget(hero, lockedTarget, gameMap);
                     } catch (IOException | InterruptedException e) {
                         System.out.println("Lỗi khi tấn công target: " + e.getMessage());
+                    }
+                    return;
+                }
+                // Nếu không có ai yếu nhất (tức là tất cả máu bằng nhau), chọn người gần nhất
+                Player nearest = Attack.findNearestPlayer(gameMap, gameMap.getCurrentPlayer().getPosition());
+                if (nearest != null) {
+                    lockedTarget = nearest;
+                    try {
+                        Attack.attackTarget(hero, lockedTarget, gameMap);
+                    } catch (IOException | InterruptedException e) {
+                        System.out.println("Lỗi khi tấn công target (người gần nhất): " + e.getMessage());
                     }
                     return;
                 }
@@ -159,7 +150,7 @@ public class Main {
     public static List<Node> getRestrictedNodes(GameMap gameMap) {
         List<Node> restrictedNodes = new ArrayList<>();
 
-        int enemyRange = 2; // Nếu enemy có range = 1, thì sẽ tránh các 3x3 ô xung quanh nó
+        int enemyRange = 3; // Nếu enemy có range = 1, thì sẽ tránh các 3x3 ô xung quanh nó
         // set enemyRange = 2 để đề phòng enemy di chuyển đến gần mình
         for (Enemy enemy : gameMap.getListEnemies()) {
             if (enemy.getPosition() != null) {
@@ -257,4 +248,57 @@ public class Main {
         }
     }
 
+    public static boolean lootNearbyItems(Hero hero, GameMap gameMap) {
+        Node cur = gameMap.getCurrentPlayer().getPosition();
+        List<Element> items = new ArrayList<>();
+        items.addAll(gameMap.getListSupportItems());
+        items.addAll(gameMap.getListWeapons());
+        items.addAll(gameMap.getListArmors());
+
+        int lootRadius = 5; // bán kính 5 => vùng 10x10
+
+        Element bestItem = null;
+        Node bestPos = null;
+        int minDist = Integer.MAX_VALUE;
+
+        for (Element item : items) {
+            if (item.getPosition() == null) continue;
+            int dist = distance(cur, item.getPosition());
+            if (dist <= lootRadius) {
+                // Kiểm tra có thể nhặt
+                if (InventoryManager.pickupable(hero, item) ||
+                        (item instanceof SupportItem && (hero.getInventory().getListSupportItem().size() < 4 || InventoryManager.pickupable(hero, (SupportItem)item)!=null))) {
+                    // Ưu tiên item gần nhất trong vùng
+                    if (dist < minDist) {
+                        minDist = dist;
+                        bestItem = item;
+                        bestPos = item.getPosition();
+                    }
+                }
+            }
+        }
+
+        if (bestItem != null) {
+            // Nếu đang đứng trên item thì nhặt luôn
+            if (minDist == 0) {
+                invManager.swapItem(gameMap, hero);
+                System.out.println("Đã nhặt/lấy item tại vị trí hiện tại: " + bestItem.getId());
+            } else {
+                // Di chuyển 1 bước về phía item gần nhất trong vùng
+                List<Node> restrictedNodes = getRestrictedNodes(gameMap);
+                String path = getShortestPath(gameMap, restrictedNodes, cur, bestPos, true);
+                if (path != null && !path.isEmpty()) {
+                    String step = path.substring(0, 1);
+                    try {
+                        hero.move(step);
+                        System.out.println("Di chuyển loot item quanh player: " + path + " tới " + bestPos);
+                    } catch (IOException e) {
+                        System.out.println("Lỗi khi di chuyển loot: " + e.getMessage());
+                    }
+                }
+            }
+            return true;
+        }
+        return false;
+    }
 }
