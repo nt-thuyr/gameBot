@@ -19,13 +19,22 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.getShortestPath;
 
 public class InventoryManager {
 
-    static boolean hasPickupableItemAround(Node center, GameMap gameMap) {
+    static boolean hasPickupableItemAround(Node center, GameMap gameMap, Hero hero) {
         List<Element> items = new ArrayList<>(gameMap.getListSupportItems());
         items.addAll(gameMap.getListWeapons());
         items.addAll(gameMap.getListArmors());
         for (Element item : items) {
-            if (item.getPosition() != null && distance(center, item.getPosition()) <= 5) {
-                return true;
+            if (distance(center, item.getPosition()) <= 5) {
+                if (item instanceof SupportItem supportItem) {
+                    if (pickupable(hero, supportItem) != null) {
+                        return true; // Có support item có thể nhặt
+                    }
+                }
+                else {
+                    if (pickupable(hero, item)) {
+                        return true; // Có item có thể nhặt
+                    }
+                }
             }
         }
         return false;
@@ -332,6 +341,7 @@ public class InventoryManager {
 
         if (nearestItem == null) {
             System.out.println("Không còn item pickupable quanh rương.");
+            // Main.lastChest = null;
             return;
         }
 
@@ -358,7 +368,7 @@ public class InventoryManager {
         for (int dx = -2; dx <= 2; dx++) {
             for (int dy = -2; dy <= 2; dy++) {
                 // Bỏ qua chính giữa
-                if (dx == 0 && dy == 0) continue;
+                // if (dx == 0 && dy == 0) continue;
                 adjacentNodes.add(new Node(x + dx, y + dy));
             }
         }

@@ -21,7 +21,7 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "160614";
+    private static final String GAME_ID = "149455";
     private static final String PLAYER_NAME = "vicky";
     private static final String SECRET_KEY = "sk-bYZnqgHmR2GpG4ft9sTGiw:VPnqplsOhg3-sHpdn2C74nII8YdFlYIJjAVK9ynHS8tdJPlr5whr2ndgLZe9sC2qlfVyOw_65WxXwzSjBu0K8Q";
 
@@ -101,7 +101,7 @@ public class Main {
 
                 // 2. Nếu vừa phá xong rương, còn item quanh rương thì nhặt
                 if (lastChestPosition != null) {
-                    boolean hasItemNearby = invManager.hasPickupableItemAround(lastChestPosition, gameMap);
+                    boolean hasItemNearby = invManager.hasPickupableItemAround(lastChestPosition, gameMap, hero);
                     if (hasItemNearby) {
                         invManager.lootDroppedItems(gameMap, hero, lastChest);
                         return; // Ưu tiên nhặt item quanh rương, xong mới làm việc khác
