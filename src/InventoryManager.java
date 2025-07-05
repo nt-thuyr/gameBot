@@ -95,7 +95,6 @@ public class InventoryManager {
                     System.out.println("Lỗi khi bỏ support item: " + e.getMessage());
                 }
                 System.out.println("Đã bỏ " + existingSupportItem.getId() + ", chờ lượt sau nhặt " + supportItem.getId());
-                return;
             } else {
                 // Nếu chưa đủ 4 item thì nhặt luôn
                 try {
@@ -152,9 +151,8 @@ public class InventoryManager {
                     }
                 }
                 // Nếu là vũ khí cận chiến
-                else if ("KNIFE".equals(weapon.getId()) || "TREE_BRANCH".equals(weapon.getId()) ||
-                        "BONE".equals(weapon.getId()) || "AXE".equals(weapon.getId()) || "MACE".equals(weapon.getId())) {
-                    if (hero.getInventory().getMelee() == null) { // Nếu chưa có cận chiến
+                else if (weapon.getType().equals(ElementType.MELEE)) {
+                    if (hero.getInventory().getMelee().getId().equals("HAND")) { // Nếu chưa có cận chiến
                         try {
                             hero.pickupItem();
                         } catch (IOException e) {
@@ -252,6 +250,25 @@ public class InventoryManager {
             }
         }
         return null;
+    }
+
+    Obstacle getNearestChest(GameMap gameMap, Hero hero) {
+        Player player = gameMap.getCurrentPlayer();
+        Node currentPosition = player.getPosition();
+        Obstacle nearestChest = null;
+        int minDistance = Integer.MAX_VALUE;
+
+        for (Obstacle obstacle : gameMap.getListObstacles()) {
+            if ("CHEST".equals(obstacle.getId())) {
+                int dist = distance(currentPosition, obstacle.getPosition());
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    nearestChest = obstacle;
+                }
+            }
+        }
+
+        return nearestChest;
     }
 
     void openChest(GameMap gameMap, Hero hero, Obstacle targetChest) throws IOException {
