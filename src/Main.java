@@ -17,9 +17,9 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "160574";
+    private static final String GAME_ID = "167561";
     private static final String PLAYER_NAME = "botable";
-    private static final String SECRET_KEY = "sk-bYZnqgHmR2GpG4ft9sTGiw:VPnqplsOhg3-sHpdn2C74nII8YdFlYIJjAVK9ynHS8tdJPlr5whr2ndgLZe9sC2qlfVyOw_65WxXwzSjBu0K8Q";
+    private static final String SECRET_KEY = "sk-lw1fb_UIRkKM7HPlasixFQ:4Th0ZK8fcP-HzPtZXAN_iKe62_93eV1tV4wFTeDBnjiW4tJ8BjGgacLMUJxSK2X1DHD1G2BwvZMEncBJ8xgxsg";
 
     static InventoryManager invManager = new InventoryManager();
     static Node lastChestPosition = null;
@@ -39,47 +39,39 @@ public class Main {
                 float currentHealth = gameMap.getCurrentPlayer().getHealth();
                 System.out.println("Current Health: " + currentHealth);
 
-//                if (lastChestPosition != null) {
-//                    boolean hasItemNearby = InventoryManager.hasPickupableItemAround(lastChestPosition, gameMap, hero);
-//                    if (hasItemNearby) {
-//                        boolean picked = invManager.lootDroppedItems(gameMap, hero, lastChest);
-//                        // Nếu lootDroppedItems trả về false (không còn gì nhặt được), thì reset luôn
-//                        if (!picked) {
-//                            System.out.println("[DEBUG] Đã thử loot nhưng không còn item, reset lastChestPosition.");
-//                            lastChestPosition = null;
-//                            lastChest = null;
-//                        }
-//                        return;
-//                    } else {
-//                        System.out.println("[DEBUG] Không còn item quanh rương (hasItemNearby false), reset luôn.");
-//                        lastChestPosition = null;
-//                        lastChest = null;
-//                    }
-//                }
-//
-//                System.out.println("[DEBUG] List support item: " + hero.getInventory().getListSupportItem().size());
-//                if (hero.getInventory().getListSupportItem().isEmpty()) {
-//                    Obstacle targetChest = invManager.getNearestChest(gameMap, hero);
-//                    System.out.println("[DEBUG] targetChest: " + (targetChest != null ? targetChest.getX() + "," + targetChest.getY() : "null"));
-//                    if (targetChest != null) {
-//                        lastChestPosition = new Node(targetChest.getX(), targetChest.getY());
-//                        lastChest = targetChest;
-//                        try {
-//                            invManager.openChest(gameMap, hero, targetChest);
-//                        } catch (IOException e) {
-//                            System.out.println("Lỗi khi mở rương: " + e.getMessage());
-//                        }
-//                        return;
-//                    }
-//                }
-                if (hero.getInventory().getGun() == null) {
-                    try {
-                        pickUpNearestWeapon(hero, gameMap, true);
-                    } catch (IOException | InterruptedException e) {
-                        System.out.println("Lỗi khi nhặt vũ khí: " + e.getMessage());
+                if (lastChestPosition != null) {
+                    boolean hasItemNearby = InventoryManager.hasPickupableItemAround(lastChestPosition, gameMap, hero);
+                    if (hasItemNearby) {
+                        invManager.lootDroppedItems(gameMap, hero, lastChest);
+                        return;
+                    } else {
+                        lastChestPosition = null;
+                        lastChest = null;
                     }
-                    return;
                 }
+
+                if (hero.getInventory().getListSupportItem().isEmpty()) {
+                    Obstacle targetChest = invManager.getNearestChest(gameMap, hero);
+                    if (targetChest != null) {
+                        lastChestPosition = new Node(targetChest.getX(), targetChest.getY());
+                        lastChest = targetChest;
+                        try {
+                            invManager.openChest(gameMap, hero, targetChest);
+                        } catch (IOException e) {
+                            System.out.println("Lỗi khi mở rương: " + e.getMessage());
+                        }
+                        return;
+                    }
+                }
+
+//                if (hero.getInventory().getGun() == null) {
+//                    try {
+//                        pickUpNearestWeapon(hero, gameMap, true);
+//                    } catch (IOException | InterruptedException e) {
+//                        System.out.println("Lỗi khi nhặt vũ khí: " + e.getMessage());
+//                    }
+//                    return;
+//                }
 
                 // 3. Nếu đang lock target thì tấn công cho đến khi tiêu diệt hoặc không còn tấn công được
                 if (lockedTarget != null && lockedTarget.getHealth() > 0) {
@@ -167,7 +159,7 @@ public class Main {
     public static List<Node> getRestrictedNodes(GameMap gameMap) {
         List<Node> restrictedNodes = new ArrayList<>();
 
-        int enemyRange = 3; // Nếu enemy có range = 1, thì sẽ tránh các 3x3 ô xung quanh nó
+        int enemyRange = 2; // Nếu enemy có range = 1, thì sẽ tránh các 3x3 ô xung quanh nó
         // set enemyRange = 2 để đề phòng enemy di chuyển đến gần mình
         for (Enemy enemy : gameMap.getListEnemies()) {
             if (enemy.getPosition() != null) {
