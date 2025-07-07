@@ -17,7 +17,7 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "136944";
+    private static final String GAME_ID = "198815";
     private static final String PLAYER_NAME = "botable";
     private static final String SECRET_KEY = "sk-9tCiKF60Sxi0KVc1ZtiQdw:mGiTucg2md7pM_jn7C19ZKq_KTUJIhBlnOUYLE5mEgH42V86LMruay6aH7TnYe1m_MmCok6c3KiTWJS0IjkJBg";
 
@@ -39,11 +39,48 @@ public class Main {
                 float currentHealth = gameMap.getCurrentPlayer().getHealth();
                 System.out.println("Current Health: " + currentHealth);
 
-                // ƯU TIÊN LOOT quanh player trước
+                // 1. Nếu máu yếu, ưu tiên hồi máu
+                if (currentHealth < maxHealth * 0.8f && !hero.getInventory().getListSupportItem().isEmpty()) {
+                    Element healingItem = findBestHealingItem(hero.getInventory().getListSupportItem(), maxHealth - currentHealth);
+                    if (healingItem != null) {
+                        try {
+                            hero.useItem(healingItem.getId());
+                            System.out.println("Đã sử dụng vật phẩm hồi máu: " + healingItem + ", máu hiện tại: " + currentHealth);
+                        } catch (IOException e) {
+                            System.out.println("Lỗi khi sử dụng vật phẩm hồi máu: " + e.getMessage());
+                        }
+                        return;
+                    }
+                }
+
+                // 2. Mở rương trong bán kính 2 ô quanh player
+                Obstacle targetChest = invManager.checkIfHasChest(gameMap, hero);
+                if (targetChest != null) {
+                    lastChestPosition = new Node(targetChest.getX(), targetChest.getY());
+                    lastChest = targetChest;
+                    try {
+                        invManager.openChest(gameMap, hero, targetChest);
+                    } catch (IOException e) {
+                        System.out.println("Lỗi khi mo ruong: " + e.getMessage());
+                    }
+                    return; // QUAN TRỌNG: return luôn để không làm gì khác tick này!
+                }
+
+                // Nếu vừa phá xong rương, còn item quanh rương thì nhặt
+                if (lastChestPosition != null) {
+                    if (lootNearbyItems(hero, gameMap)) {
+                        return; // Ưu tiên nhặt item quanh rương, xong mới làm việc khác
+                    } else {
+                        lastChestPosition = null; // Không còn item quanh, reset
+                    }
+                }
+
+                // 3. Loot đồ tốt hơn bán kính 5 ô quanh player
                 if (lootNearbyItems(hero, gameMap)) {
                     return;
                 }
 
+                // Nếu chưa có vũ khí nào trong inventory, đi tìm vũ khí gần nhất
                 if (hero.getInventory().getGun() == null && hero.getInventory().getMelee().getId().equals("HAND")
                         && hero.getInventory().getThrowable() == null && hero.getInventory().getSpecial() == null) {
                     try {
@@ -54,7 +91,7 @@ public class Main {
                     return;
                 }
 
-                // 3. Nếu đang lock target thì tấn công cho đến khi tiêu diệt hoặc không còn tấn công được
+                // 4. Nếu đang lock target thì tấn công cho đến khi tiêu diệt hoặc không còn tấn công được
                 if (lockedTarget != null) {
                     // Luôn tìm lại đối tượng player mới nhất theo id
                     Player current = null;
@@ -72,20 +109,6 @@ public class Main {
                             Attack.attackTarget(hero, current, gameMap); // Dùng object mới nhất
                         } catch (IOException | InterruptedException e) {
                             System.out.println("Lỗi khi tấn công target: " + e.getMessage());
-                        }
-                        return;
-                    }
-                }
-
-                // 4. Nếu máu yếu, ưu tiên hồi máu
-                if (currentHealth < maxHealth * 0.8f && !hero.getInventory().getListSupportItem().isEmpty()) {
-                    Element healingItem = findBestHealingItem(hero.getInventory().getListSupportItem(), maxHealth - currentHealth);
-                    if (healingItem != null) {
-                        try {
-                            hero.useItem(healingItem.getId());
-                            System.out.println("Đã sử dụng vật phẩm hồi máu: " + healingItem + ", máu hiện tại: " + currentHealth);
-                        } catch (IOException e) {
-                            System.out.println("Lỗi khi sử dụng vật phẩm hồi máu: " + e.getMessage());
                         }
                         return;
                     }
@@ -124,27 +147,27 @@ public class Main {
 
     // Phương thức hỗ trợ để tìm vật phẩm hồi máu phù hợp nhất dựa trên lostHp
     private static SupportItem findBestHealingItem(List<SupportItem> supportItems, float lostHp) {
-        SupportItem bestItem = null;                // Lưu trữ vật phẩm tốt nhất
-        float bestHealingHp = supportItems.get(0).getHealingHP();
-
-        // TH1: nếu có vật phẩm hồi nhiều hơn lượng máu mất
+        SupportItem bestItem = null;
+        float bestHealingHp = Float.MAX_VALUE;
+        // Chọn item healing >= lostHp nhỏ nhất, nếu không có thì healing lớn nhất nhỏ hơn lostHp
         for (SupportItem item : supportItems) {
-            if (item.getHealingHP() >= lostHp && item.getHealingHP() < bestHealingHp) {
+            float heal = item.getHealingHP();
+            if (heal >= lostHp && heal < bestHealingHp) {
                 bestItem = item;
-                bestHealingHp = item.getHealingHP();
+                bestHealingHp = heal;
             }
         }
-
         if (bestItem == null) {
+            bestHealingHp = 0;
             for (SupportItem item : supportItems) {
-                if (item.getHealingHP() > bestHealingHp) {
+                float heal = item.getHealingHP();
+                if (heal > bestHealingHp && heal < lostHp) {
                     bestItem = item;
-                    bestHealingHp = item.getHealingHP();
+                    bestHealingHp = heal;
                 }
             }
         }
-
-        return bestItem; // Trả về vật phẩm tốt nhất hoặc null nếu không có
+        return bestItem;
     }
 
     public static List<Node> getRestrictedNodes(GameMap gameMap) {

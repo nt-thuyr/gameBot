@@ -252,7 +252,7 @@ public class InventoryManager {
         Player player = gameMap.getCurrentPlayer();
         Node currentPosition = player.getPosition();
         for (Obstacle obstacle : gameMap.getListObstacles()) {
-            if (distance(currentPosition, obstacle.getPosition()) <= 5 && "CHEST".equals(obstacle.getId())) {
+            if (distance(currentPosition, obstacle.getPosition()) <= 3 && "CHEST".equals(obstacle.getId())) {
                 System.out.println("Có rương kho báu gần đây, hãy mở nó!");
                 return obstacle;
             }

@@ -99,20 +99,6 @@ public class Attack {
         Weapon melee = hero.getInventory().getMelee();
         Weapon special = hero.getInventory().getSpecial();
 
-        // THROWABLE
-        if (throwable != null && isInsideRange(throwable.getRange(), currentPosition, targetNode, direction)) {
-            hero.throwItem(direction);
-            System.out.println("Ném vật phẩm về hướng " + direction);
-            return;
-        }
-
-        // SPECIAL
-        if (special != null && isInsideRange(special.getRange(), currentPosition, targetNode, direction)) {
-            hero.useSpecial(direction);
-            System.out.println("Dùng vũ khí đặc biệt về hướng " + direction);
-            return;
-        }
-
         // GUN
         if (gun != null && isInsideRange(gun.getRange(), currentPosition, targetNode, direction)) {
             hero.shoot(direction);
@@ -120,10 +106,24 @@ public class Attack {
             return;
         }
 
+        // THROWABLE
+        if (throwable != null && isInsideRange(throwable.getRange(), currentPosition, targetNode, direction)) {
+            hero.throwItem(direction);
+            System.out.println("Ném vật phẩm về hướng " + direction);
+            return;
+        }
+
         // MELEE – Chỉ dùng khi sát bên
         if (melee != null && !"HAND".equals(melee.getId()) && isInsideRange(melee.getRange(), currentPosition, targetNode, direction)) {
             hero.attack(direction);
             System.out.println("Tấn công cận chiến vào mục tiêu ở hướng " + direction);
+            return;
+        }
+
+        // SPECIAL
+        if (special != null && isInsideRange(special.getRange(), currentPosition, targetNode, direction)) {
+            hero.useSpecial(direction);
+            System.out.println("Dùng vũ khí đặc biệt về hướng " + direction);
             return;
         }
 
