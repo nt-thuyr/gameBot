@@ -17,15 +17,16 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "198815";
+    private static final String GAME_ID = "104240";
     private static final String PLAYER_NAME = "botable";
     private static final String SECRET_KEY = "sk-9tCiKF60Sxi0KVc1ZtiQdw:mGiTucg2md7pM_jn7C19ZKq_KTUJIhBlnOUYLE5mEgH42V86LMruay6aH7TnYe1m_MmCok6c3KiTWJS0IjkJBg";
 
-    static InventoryManager invManager = new InventoryManager();
+    static ItemManager itemManager = new ItemManager();
     static Node lastChestPosition = null;
     static Obstacle lastChest = null;
     static Player lockedTarget = null;
     static final float maxHealth = 100.0f; // Giả sử máu tối đa là 100
+    static Health health = new Health();
 
     public static void main(String[] args) throws IOException {
         Hero hero = new Hero(GAME_ID, PLAYER_NAME, SECRET_KEY);
@@ -41,7 +42,7 @@ public class Main {
 
                 // 1. Nếu máu yếu, ưu tiên hồi máu
                 if (currentHealth < maxHealth * 0.8f && !hero.getInventory().getListSupportItem().isEmpty()) {
-                    Element healingItem = findBestHealingItem(hero.getInventory().getListSupportItem(), maxHealth - currentHealth);
+                    Element healingItem = health.findBestHealingItem(hero.getInventory().getListSupportItem(), maxHealth - currentHealth);
                     if (healingItem != null) {
                         try {
                             hero.useItem(healingItem.getId());
@@ -51,15 +52,18 @@ public class Main {
                         }
                         return;
                     }
+                    else {
+                        health.healByAlly(gameMap, hero); // Nếu gần đó có ally thì chạy tới chỗ ally
+                    }
                 }
 
                 // 2. Mở rương trong bán kính 2 ô quanh player
-                Obstacle targetChest = invManager.checkIfHasChest(gameMap, hero);
+                Obstacle targetChest = itemManager.checkIfHasChest(gameMap, hero);
                 if (targetChest != null) {
                     lastChestPosition = new Node(targetChest.getX(), targetChest.getY());
                     lastChest = targetChest;
                     try {
-                        invManager.openChest(gameMap, hero, targetChest);
+                        itemManager.openChest(gameMap, hero, targetChest);
                     } catch (IOException e) {
                         System.out.println("Lỗi khi mo ruong: " + e.getMessage());
                     }
@@ -68,7 +72,7 @@ public class Main {
 
                 // Nếu vừa phá xong rương, còn item quanh rương thì nhặt
                 if (lastChestPosition != null) {
-                    if (lootNearbyItems(hero, gameMap)) {
+                    if (itemManager.lootNearbyItems(hero, gameMap)) {
                         return; // Ưu tiên nhặt item quanh rương, xong mới làm việc khác
                     } else {
                         lastChestPosition = null; // Không còn item quanh, reset
@@ -76,7 +80,7 @@ public class Main {
                 }
 
                 // 3. Loot đồ tốt hơn bán kính 5 ô quanh player
-                if (lootNearbyItems(hero, gameMap)) {
+                if (itemManager.lootNearbyItems(hero, gameMap)) {
                     return;
                 }
 
@@ -145,30 +149,7 @@ public class Main {
         hero.start(SERVER_URL);
     }
 
-    // Phương thức hỗ trợ để tìm vật phẩm hồi máu phù hợp nhất dựa trên lostHp
-    private static SupportItem findBestHealingItem(List<SupportItem> supportItems, float lostHp) {
-        SupportItem bestItem = null;
-        float bestHealingHp = Float.MAX_VALUE;
-        // Chọn item healing >= lostHp nhỏ nhất, nếu không có thì healing lớn nhất nhỏ hơn lostHp
-        for (SupportItem item : supportItems) {
-            float heal = item.getHealingHP();
-            if (heal >= lostHp && heal < bestHealingHp) {
-                bestItem = item;
-                bestHealingHp = heal;
-            }
-        }
-        if (bestItem == null) {
-            bestHealingHp = 0;
-            for (SupportItem item : supportItems) {
-                float heal = item.getHealingHP();
-                if (heal > bestHealingHp && heal < lostHp) {
-                    bestItem = item;
-                    bestHealingHp = heal;
-                }
-            }
-        }
-        return bestItem;
-    }
+
 
     public static List<Node> getRestrictedNodes(GameMap gameMap) {
         List<Node> restrictedNodes = new ArrayList<>();
@@ -238,7 +219,7 @@ public class Main {
         int mapSize = gameMap.getMapSize();
 
         for (Element weapon : weapons) {
-            if (InventoryManager.pickupable(hero, weapon)) {
+            if (ItemManager.pickupable(hero, weapon)) {
                 Node weaponNode = weapon.getPosition();
                 if (!skipDarkArea && !checkInsideSafeArea(weaponNode, safeZone, mapSize)) continue;
                 int dist = distance(currentPosition, weaponNode);
@@ -266,62 +247,10 @@ public class Main {
             System.out.println("Di chuyển: " + path);
         } else {
             // Nếu đã đứng trên vị trí vũ khí thì nhặt luôn, không di chuyển
-            invManager.swapItem(gameMap, hero);
+            itemManager.swapItem(gameMap, hero);
             System.out.println("Đang đứng trên vũ khí, thực hiện nhặt.");
         }
     }
 
-    public static boolean lootNearbyItems(Hero hero, GameMap gameMap) {
-        Node cur = gameMap.getCurrentPlayer().getPosition();
-        List<Element> items = new ArrayList<>();
-        items.addAll(gameMap.getListSupportItems());
-        items.addAll(gameMap.getListWeapons());
-        items.addAll(gameMap.getListArmors());
 
-        int lootRadius = 5; // bán kính 5 => vùng 10x10
-
-        Element bestItem = null;
-        Node bestPos = null;
-        int minDist = Integer.MAX_VALUE;
-
-        for (Element item : items) {
-            if (item.getPosition() == null) continue;
-            int dist = distance(cur, item.getPosition());
-            if (dist <= lootRadius) {
-                // Kiểm tra có thể nhặt
-                if (InventoryManager.pickupable(hero, item) ||
-                        (item instanceof SupportItem && (hero.getInventory().getListSupportItem().size() < 4 || InventoryManager.pickupable(hero, (SupportItem)item)!=null))) {
-                    // Ưu tiên item gần nhất trong vùng
-                    if (dist < minDist) {
-                        minDist = dist;
-                        bestItem = item;
-                        bestPos = item.getPosition();
-                    }
-                }
-            }
-        }
-
-        if (bestItem != null) {
-            // Nếu đang đứng trên item thì nhặt luôn
-            if (minDist == 0) {
-                invManager.swapItem(gameMap, hero);
-                System.out.println("Đã nhặt/lấy item tại vị trí hiện tại: " + bestItem.getId());
-            } else {
-                // Di chuyển 1 bước về phía item gần nhất trong vùng
-                List<Node> restrictedNodes = getRestrictedNodes(gameMap);
-                String path = getShortestPath(gameMap, restrictedNodes, cur, bestPos, true);
-                if (path != null && !path.isEmpty()) {
-                    String step = path.substring(0, 1);
-                    try {
-                        hero.move(step);
-                        System.out.println("Di chuyển loot item quanh player: " + path + " tới " + bestPos);
-                    } catch (IOException e) {
-                        System.out.println("Lỗi khi di chuyển loot: " + e.getMessage());
-                    }
-                }
-            }
-            return true;
-        }
-        return false;
-    }
 }
