@@ -6,7 +6,6 @@ import jsclub.codefest.sdk.Hero;
 import jsclub.codefest.sdk.model.npcs.Enemy;
 import jsclub.codefest.sdk.model.obstacles.Obstacle;
 import jsclub.codefest.sdk.model.players.Player;
-import jsclub.codefest.sdk.model.support_items.SupportItem;
 import jsclub.codefest.sdk.model.weapon.Weapon;
 
 import java.io.IOException;
@@ -21,7 +20,6 @@ public class Main {
     private static final String PLAYER_NAME = "botable";
     private static final String SECRET_KEY = "sk-9tCiKF60Sxi0KVc1ZtiQdw:mGiTucg2md7pM_jn7C19ZKq_KTUJIhBlnOUYLE5mEgH42V86LMruay6aH7TnYe1m_MmCok6c3KiTWJS0IjkJBg";
 
-    static InventoryManager invManager = new InventoryManager();
     static Node lastChestPosition = null;
     static Obstacle lastChest = null;
     static Player lockedTarget = null;
@@ -55,7 +53,7 @@ public class Main {
                 }
 
                 // 2. Mở rương trong bán kính 2 ô quanh player
-                Obstacle targetChest = ItemManager.checkIfHasChest(gameMap, hero);
+                Obstacle targetChest = ItemManager.checkIfHasChest(gameMap);
                 if (targetChest != null) {
                     lastChestPosition = new Node(targetChest.getX(), targetChest.getY());
                     lastChest = targetChest;

@@ -12,7 +12,7 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.distance;
 import static jsclub.codefest.sdk.algorithm.PathUtils.getShortestPath;
 
 public class Health {
-    Node checkIfHasNearbyAlley(GameMap gameMap) {
+    static Node checkIfHasNearbyAlley(GameMap gameMap) {
         Node currentPosition = gameMap.getCurrentPlayer().getPosition();
         List<Ally> allies = gameMap.getListAllies();
 
@@ -25,7 +25,7 @@ public class Health {
         return null;
     }
 
-    void moveToAlley(GameMap gameMap, Node allyNode, Hero hero) {
+    static void moveToAlley(GameMap gameMap, Node allyNode, Hero hero) {
         Player currentPlayer = gameMap.getCurrentPlayer();
 
         // Nếu chưa ở vị trí vũ khí, tính đường đi
@@ -47,7 +47,7 @@ public class Health {
         }
     }
 
-    void healByAlly(GameMap gameMap, Hero hero) {
+    static void healByAlly(GameMap gameMap, Hero hero) {
         Node allyNode = checkIfHasNearbyAlley(gameMap);
         if (allyNode != null) {
             System.out.println("Đã tìm thấy ally ở gần");
@@ -58,7 +58,7 @@ public class Health {
     }
 
     // Phương thức hỗ trợ để tìm vật phẩm hồi máu phù hợp nhất dựa trên lostHp
-    SupportItem findBestHealingItem(List<SupportItem> supportItems, float lostHp) {
+    static SupportItem findBestHealingItem(List<SupportItem> supportItems, float lostHp) {
         SupportItem bestItem = null;
         float bestHealingHp = Float.MAX_VALUE;
         // Chọn item healing >= lostHp nhỏ nhất, nếu không có thì healing lớn nhất nhỏ hơn lostHp
