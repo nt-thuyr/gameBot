@@ -115,7 +115,7 @@ public class Main {
                     if (current == null || current.getHealth() <= 0) {
                         lockedTarget = null;
                     } else {
-                        movementCombo(gameMap, hero, current, currentHealth);
+                        movementSet(gameMap, hero, current, currentHealth);
                     }
                 }
 
@@ -123,14 +123,14 @@ public class Main {
                 Player weakest = Attack.findWeakestPlayer(gameMap);
                 if (weakest != null) {
                     lockedTarget = weakest;
-                    movementCombo(gameMap, hero, weakest, currentHealth);
+                    movementSet(gameMap, hero, weakest, currentHealth);
                 }
 
                 // Nếu không có ai yếu nhất (tức là tất cả máu bằng nhau), chọn người gần nhất
                 Player nearest = Attack.findNearestPlayer(gameMap, gameMap.getCurrentPlayer().getPosition());
                 if (nearest != null) {
                     lockedTarget = nearest;
-                    movementCombo(gameMap, hero, nearest, currentHealth);
+                    movementSet(gameMap, hero, nearest, currentHealth);
                 }
 
                 // Nếu không tìm thấy mục tiêu, reset lockedTarget
@@ -144,7 +144,7 @@ public class Main {
         hero.start(SERVER_URL);
     }
 
-    public static void movementCombo(GameMap gameMap, Hero hero, Player target, float currentHealth) {
+    public static void movementSet(GameMap gameMap, Hero hero, Player target, float currentHealth) {
         try {
             boolean attacked = Attack.attackTarget(hero, target, gameMap);
             if (attacked) {
