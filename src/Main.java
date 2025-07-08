@@ -6,18 +6,16 @@ import jsclub.codefest.sdk.Hero;
 import jsclub.codefest.sdk.model.npcs.Enemy;
 import jsclub.codefest.sdk.model.obstacles.Obstacle;
 import jsclub.codefest.sdk.model.players.Player;
-import jsclub.codefest.sdk.model.support_items.SupportItem;
 import jsclub.codefest.sdk.model.weapon.Weapon;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "104240";
+    private static final String GAME_ID = "111894";
     private static final String PLAYER_NAME = "botable";
     private static final String SECRET_KEY = "sk-9tCiKF60Sxi0KVc1ZtiQdw:mGiTucg2md7pM_jn7C19ZKq_KTUJIhBlnOUYLE5mEgH42V86LMruay6aH7TnYe1m_MmCok6c3KiTWJS0IjkJBg";
 
@@ -28,6 +26,9 @@ public class Main {
     static final float maxHealth = 100.0f; // Giả sử máu tối đa là 100
     static Health health = new Health();
 
+    static EnemyTrajectoryCollector collector = new EnemyTrajectoryCollector();
+    static int tickCount = 0;
+
     public static void main(String[] args) throws IOException {
         Hero hero = new Hero(GAME_ID, PLAYER_NAME, SECRET_KEY);
 
@@ -36,6 +37,8 @@ public class Main {
             public void call(Object... args) {
                 GameMap gameMap = hero.getGameMap();
                 gameMap.updateOnUpdateMap(args[0]);
+
+                collector.collect(gameMap, tickCount);
 
                 float currentHealth = gameMap.getCurrentPlayer().getHealth();
                 System.out.println("Current Health: " + currentHealth);
@@ -154,15 +157,31 @@ public class Main {
     public static List<Node> getRestrictedNodes(GameMap gameMap) {
         List<Node> restrictedNodes = new ArrayList<>();
 
-        int enemyRange = 2; // Nếu enemy có range = 1, thì sẽ tránh các 3x3 ô xung quanh nó
-        // set enemyRange = 2 để đề phòng enemy di chuyển đến gần mình
+        int enemyRange = 3; // Tránh cả vùng quanh enemy
+
+        // Tránh quái vật (dùng trajectory nếu có)
         for (Enemy enemy : gameMap.getListEnemies()) {
-            if (enemy.getPosition() != null) {
-                Node pos = enemy.getPosition();
-                for (int dx = -enemyRange; dx <= enemyRange; dx++) {
-                    for (int dy = -enemyRange; dy <= enemyRange; dy++) {
-                        restrictedNodes.add(new Node(pos.getX() + dx, pos.getY() + dy));
-                    }
+            if (enemy.getPosition() == null) continue;
+
+            // Lấy đúng spawnPos ban đầu để xác định trajectory key
+            Node spawnPos = collector.enemySpawnPos.get(enemy);
+            if (spawnPos == null) {
+                // Nếu chưa lưu spawnPos, fallback về vị trí hiện tại
+                spawnPos = enemy.getPosition();
+            }
+
+            Node dangerPos = enemy.getPosition();
+            if (collector.isReady()) {
+                EnemyTrajectoryCollector.TrajectoryInfo info = collector.getTrajectory(enemy.getId(), spawnPos);
+                if (info != null) {
+                    // Dự đoán vị trí enemy ở tick tiếp theo (hoặc +2 nếu muốn)
+                    dangerPos = info.getPositionAtTick(tickCount + 1);
+                }
+            }
+
+            for (int dx = -enemyRange; dx <= enemyRange; dx++) {
+                for (int dy = -enemyRange; dy <= enemyRange; dy++) {
+                    restrictedNodes.add(new Node(dangerPos.getX() + dx, dangerPos.getY() + dy));
                 }
             }
         }
