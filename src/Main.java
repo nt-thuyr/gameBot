@@ -168,7 +168,7 @@ public class Main {
     public static List<Node> getRestrictedNodes(GameMap gameMap) {
         List<Node> restrictedNodes = new ArrayList<>();
 
-        int enemyRange = 1; // Tránh cả vùng quanh enemy
+        int enemyRange = 2; // Tránh cả vùng quanh enemy
 
         // Tránh quái vật (dùng trajectory nếu có)
         for (Enemy enemy : gameMap.getListEnemies()) {
@@ -328,7 +328,19 @@ public class Main {
         // Kiểm tra bước di chuyển có nằm trong vùng an toàn không
         if (!checkInsideSafeArea(positionAfterStep, safeZone, mapSize)) {
             System.out.println("Không thể di chuyển ra ngoài vùng an toàn: " + positionAfterStep);
-            return;
+
+            Weapon gun = hero.getInventory().getGun();
+            Weapon melee = hero.getInventory().getMelee();
+            Weapon throwable = hero.getInventory().getThrowable();
+
+            if ((gun != null && Attack.isInsideRange(gameMap, gun, currentPosition, targetNode, getDirection(currentPosition, targetNode)) ||
+                    Attack.isInsideRange(gameMap, melee, currentPosition, targetNode, getDirection(currentPosition, targetNode))) ||
+            (throwable != null && Attack.isInsideRange(gameMap, throwable, currentPosition, targetNode, getDirection(currentPosition, targetNode)))) {
+                return; // Nếu có thể tấn công từ vị trí hiện tại, không cần di chuyển
+            } else {
+                Main.lockedTarget = null; // Reset mục tiêu nếu không thể tấn công
+                return;
+            }
         }
 
         hero.move(step);
