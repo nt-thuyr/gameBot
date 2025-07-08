@@ -33,7 +33,7 @@ public class Health {
         String path = getShortestPath(gameMap, restrictedNodes, currentPlayer.getPosition(), allyNode, true);
         System.out.println("Path tìm được: " + path);
 
-        if (path != null && !path.isEmpty()) {
+        if (path != null && path.length() > 1) {
             String step = path.substring(0, 1);
             try {
                 hero.move(step);

@@ -6,11 +6,11 @@ import jsclub.codefest.sdk.Hero;
 import jsclub.codefest.sdk.model.npcs.Enemy;
 import jsclub.codefest.sdk.model.obstacles.Obstacle;
 import jsclub.codefest.sdk.model.players.Player;
+import jsclub.codefest.sdk.model.support_items.SupportItem;
 import jsclub.codefest.sdk.model.weapon.Weapon;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
@@ -25,6 +25,9 @@ public class Main {
     static Player lockedTarget = null;
     static final float maxHealth = 100.0f; // Máu tối đa khởi đầu của player
 
+    static EnemyTrajectoryCollector collector = new EnemyTrajectoryCollector();
+    static int tickCount = 0;
+
     public static void main(String[] args) throws IOException {
         Hero hero = new Hero(GAME_ID, PLAYER_NAME, SECRET_KEY);
 
@@ -34,8 +37,12 @@ public class Main {
                 GameMap gameMap = hero.getGameMap();
                 gameMap.updateOnUpdateMap(args[0]);
 
-                // 1. Nếu máu yếu, ưu tiên hồi máu
+                collector.collect(gameMap, tickCount);
+
                 float currentHealth = gameMap.getCurrentPlayer().getHealth();
+                System.out.println("Current Health: " + currentHealth);
+
+                // 1. Nếu máu yếu, ưu tiên hồi máu
                 if (currentHealth < maxHealth * 0.8f && !hero.getInventory().getListSupportItem().isEmpty()) {
                     Element healingItem = Health.findBestHealingItem(hero.getInventory().getListSupportItem(), maxHealth - currentHealth);
                     if (healingItem != null) {
@@ -156,7 +163,7 @@ public class Main {
                     return;
                 }
 
-                // 6. Nếu không tìm thấy mục tiêu, reset lockedTarget
+                // Nếu không tìm thấy mục tiêu, reset lockedTarget
                 lockedTarget = null;
 
                 // 6. (Có thể bổ sung: khám phá map hoặc nhặt vũ khí/support item tốt hơn nếu muốn)
@@ -171,15 +178,31 @@ public class Main {
     public static List<Node> getRestrictedNodes(GameMap gameMap) {
         List<Node> restrictedNodes = new ArrayList<>();
 
-        int enemyRange = 2; // Nếu enemy có range = 1, thì sẽ tránh các 3x3 ô xung quanh nó
-        // set enemyRange = 2 để đề phòng enemy di chuyển đến gần mình
+        int enemyRange = 3; // Tránh cả vùng quanh enemy
+
+        // Tránh quái vật (dùng trajectory nếu có)
         for (Enemy enemy : gameMap.getListEnemies()) {
-            if (enemy.getPosition() != null) {
-                Node pos = enemy.getPosition();
-                for (int dx = -enemyRange; dx <= enemyRange; dx++) {
-                    for (int dy = -enemyRange; dy <= enemyRange; dy++) {
-                        restrictedNodes.add(new Node(pos.getX() + dx, pos.getY() + dy));
-                    }
+            if (enemy.getPosition() == null) continue;
+
+            // Lấy đúng spawnPos ban đầu để xác định trajectory key
+            Node spawnPos = collector.enemySpawnPos.get(enemy);
+            if (spawnPos == null) {
+                // Nếu chưa lưu spawnPos, fallback về vị trí hiện tại
+                spawnPos = enemy.getPosition();
+            }
+
+            Node dangerPos = enemy.getPosition();
+            if (collector.isReady()) {
+                EnemyTrajectoryCollector.TrajectoryInfo info = collector.getTrajectory(enemy.getId(), spawnPos);
+                if (info != null) {
+                    // Dự đoán vị trí enemy ở tick tiếp theo (hoặc +2 nếu muốn)
+                    dangerPos = info.getPositionAtTick(tickCount + 1);
+                }
+            }
+
+            for (int dx = -enemyRange; dx <= enemyRange; dx++) {
+                for (int dy = -enemyRange; dy <= enemyRange; dy++) {
+                    restrictedNodes.add(new Node(dangerPos.getX() + dx, dangerPos.getY() + dy));
                 }
             }
         }
@@ -278,19 +301,4 @@ public class Main {
 
         Node currentPosition = gameMap.getCurrentPlayer().getPosition();
 
-        // Tìm đường đi ngắn nhất
-        List<Node> restrictedNodes = Main.getRestrictedNodes(gameMap);
-        restrictedNodes.remove(targetNode);
-
-        String path = getShortestPath(gameMap, restrictedNodes, currentPosition, targetNode, true);
-        if (path == null || path.isEmpty()) {
-            System.out.println("Không tìm thấy đường đi đến mục tiêu!");
-            Main.lockedTarget = null; // Reset mục tiêu nếu không đến được
-            return;
-        }
-
-        String step = path.substring(0, 1);
-        hero.move(step);
-        System.out.println("Di chuyển 1 bước về hướng " + step + " để tiếp cận mục tiêu.");
-    }
 }
