@@ -17,10 +17,11 @@ import java.util.List;
 import static jsclub.codefest.sdk.algorithm.PathUtils.distance;
 import static jsclub.codefest.sdk.algorithm.PathUtils.getShortestPath;
 
-public class InventoryManager {
+public class ItemManager {
 
     static boolean hasPickupableItemAround(Node center, GameMap gameMap, Hero hero) {
         List<Element> items = new ArrayList<>(gameMap.getListSupportItems());
+
         items.addAll(gameMap.getListWeapons());
         items.addAll(gameMap.getListArmors());
         for (Element item : items) {
@@ -374,6 +375,60 @@ public class InventoryManager {
             }
         }
         return adjacentNodes;
+    }
+
+    public boolean lootNearbyItems(Hero hero, GameMap gameMap) {
+        Node cur = gameMap.getCurrentPlayer().getPosition();
+        List<Element> items = new ArrayList<>();
+        items.addAll(gameMap.getListSupportItems());
+        items.addAll(gameMap.getListWeapons());
+        items.addAll(gameMap.getListArmors());
+
+        int lootRadius = 5; // bán kính 5 => vùng 10x10
+
+        Element bestItem = null;
+        Node bestPos = null;
+        int minDist = Integer.MAX_VALUE;
+
+        for (Element item : items) {
+            if (item.getPosition() == null) continue;
+            int dist = distance(cur, item.getPosition());
+            if (dist <= lootRadius) {
+                // Kiểm tra có thể nhặt
+                if (ItemManager.pickupable(hero, item) ||
+                        (item instanceof SupportItem && (hero.getInventory().getListSupportItem().size() < 4 || ItemManager.pickupable(hero, (SupportItem)item)!=null))) {
+                    // Ưu tiên item gần nhất trong vùng
+                    if (dist < minDist) {
+                        minDist = dist;
+                        bestItem = item;
+                        bestPos = item.getPosition();
+                    }
+                }
+            }
+        }
+
+        if (bestItem != null) {
+            // Nếu đang đứng trên item thì nhặt luôn
+            if (minDist == 0) {
+                swapItem(gameMap, hero);
+                System.out.println("Đã nhặt/lấy item tại vị trí hiện tại: " + bestItem.getId());
+            } else {
+                // Di chuyển 1 bước về phía item gần nhất trong vùng
+                List<Node> restrictedNodes = Main.getRestrictedNodes(gameMap);
+                String path = getShortestPath(gameMap, restrictedNodes, cur, bestPos, true);
+                if (path != null && !path.isEmpty()) {
+                    String step = path.substring(0, 1);
+                    try {
+                        hero.move(step);
+                        System.out.println("Di chuyển loot item quanh player: " + path + " tới " + bestPos);
+                    } catch (IOException e) {
+                        System.out.println("Lỗi khi di chuyển loot: " + e.getMessage());
+                    }
+                }
+            }
+            return true;
+        }
+        return false;
     }
 
     Obstacle getNearestChest(GameMap gameMap, Hero hero) {
