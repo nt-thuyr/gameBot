@@ -53,8 +53,7 @@ public class Main {
                             System.out.println("Lỗi khi sử dụng vật phẩm hồi máu: " + e.getMessage());
                         }
                         return;
-                    }
-                    else {
+                    } else {
                         Health.healByAlly(gameMap, hero); // Nếu gần đó có ally thì chạy tới chỗ ally
                     }
                 }
@@ -258,14 +257,14 @@ public class Main {
         int safeZone = gameMap.getSafeZone();
         int mapSize = gameMap.getMapSize();
 
-        for (Element weapon : weapons) {
+        for (Weapon weapon : weapons) {
             if (ItemManager.pickupable(hero, weapon)) {
                 Node weaponNode = weapon.getPosition();
                 if (!skipDarkArea && !checkInsideSafeArea(weaponNode, safeZone, mapSize)) continue;
                 int dist = distance(currentPosition, weaponNode);
                 if (dist < minDistance) {
                     minDistance = dist;
-                    nearestWeapon = (Weapon) weapon;
+                    nearestWeapon = weapon;
                     nearestNode = weaponNode;
                 }
             }
@@ -301,4 +300,19 @@ public class Main {
 
         Node currentPosition = gameMap.getCurrentPlayer().getPosition();
 
+        // Tìm đường đi ngắn nhất
+        List<Node> restrictedNodes = Main.getRestrictedNodes(gameMap);
+        restrictedNodes.remove(targetNode);
+
+        String path = getShortestPath(gameMap, restrictedNodes, currentPosition, targetNode, true);
+        if (path == null || path.isEmpty()) {
+            System.out.println("Không tìm thấy đường đi đến mục tiêu!");
+            Main.lockedTarget = null; // Reset mục tiêu nếu không đến được
+            return;
+        }
+
+        String step = path.substring(0, 1);
+        hero.move(step);
+        System.out.println("Di chuyển 1 bước về hướng " + step + " để tiếp cận mục tiêu.");
+    }
 }
