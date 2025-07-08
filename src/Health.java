@@ -12,7 +12,7 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.distance;
 import static jsclub.codefest.sdk.algorithm.PathUtils.getShortestPath;
 
 public class Health {
-    static Node checkIfHasNearbyAlley(GameMap gameMap) {
+    static Node checkIfHasNearbyAlly(GameMap gameMap) {
         Node currentPosition = gameMap.getCurrentPlayer().getPosition();
         List<Ally> allies = gameMap.getListAllies();
 
@@ -48,7 +48,7 @@ public class Health {
     }
 
     static void healByAlly(GameMap gameMap, Hero hero) {
-        Node allyNode = checkIfHasNearbyAlley(gameMap);
+        Node allyNode = checkIfHasNearbyAlly(gameMap);
         if (allyNode != null) {
             System.out.println("Đã tìm thấy ally ở gần");
             moveToAlley(gameMap, allyNode, hero);
