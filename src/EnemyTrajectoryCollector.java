@@ -26,7 +26,7 @@ public class EnemyTrajectoryCollector {
     // Đánh dấu đã đủ dữ liệu cho tất cả enemy
     boolean ready = false;
 
-    public static class TrajectoryInfo {
+     static class TrajectoryInfo {
         public final List<Node> path;      // Quỹ đạo (danh sách node đi qua theo thứ tự)
         public final int period;           // Chu kỳ (số tick lặp lại 1 vòng)
         public final int startTickOffset;  // Tick đầu tiên xuất hiện trên path (relative to game start)
@@ -45,7 +45,7 @@ public class EnemyTrajectoryCollector {
      * Gọi hàm này mỗi tick đầu game để thu thập lịch sử vị trí enemy.
      * Khi đã đủ dữ liệu, manager sẽ tự động dừng.
      */
-    public void collect(GameMap gameMap, int currentTick) {
+     void collect(GameMap gameMap, int currentTick) {
         if (ready) return;
         List<Enemy> enemies = gameMap.getListEnemies();
         // Bước 1: mapping từng cá thể enemy hiện tại với key duy nhất
@@ -94,29 +94,29 @@ public class EnemyTrajectoryCollector {
     }
 
     /** Đã đủ dữ liệu cho mọi enemy cá thể? */
-    public boolean isReady() {
+    boolean isReady() {
         return ready;
     }
 
     /** Lấy TrajectoryInfo của enemy theo key (id + spawn pos) */
-    public TrajectoryInfo getTrajectory(String id, Node spawnPos) {
+     TrajectoryInfo getTrajectory(String id, Node spawnPos) {
         return trajectoryMap.get(getEnemyKey(id, spawnPos));
     }
 
     /** Lấy toàn bộ lịch trình enemy: key -> Info */
-    public Map<String, TrajectoryInfo> getAllTrajectories() {
+     Map<String, TrajectoryInfo> getAllTrajectories() {
         return trajectoryMap;
     }
 
     /** Lấy key của tất cả enemy đã thu thập */
-    public Set<String> getAllKeys() {
+     Set<String> getAllKeys() {
         return trajectoryMap.keySet();
     }
 
     /**
      * Hỗ trợ: Lấy key phân biệt các cá thể enemy hiện tại trên map (dùng cho pathfinding)
      */
-    public static String getKeyForEnemyOnMap(Enemy enemy) {
+     static String getKeyForEnemyOnMap(Enemy enemy) {
         Node pos = enemy.getPosition();
         return getEnemyKey(enemy.getId(), pos);
     }

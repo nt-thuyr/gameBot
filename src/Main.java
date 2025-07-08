@@ -16,7 +16,7 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "198815";
+    private static final String GAME_ID = "168996";
     private static final String PLAYER_NAME = "botable";
     private static final String SECRET_KEY = "sk-9tCiKF60Sxi0KVc1ZtiQdw:mGiTucg2md7pM_jn7C19ZKq_KTUJIhBlnOUYLE5mEgH42V86LMruay6aH7TnYe1m_MmCok6c3KiTWJS0IjkJBg";
 
@@ -275,15 +275,10 @@ public class Main {
             return;
         }
 
-        // Nếu chưa ở vị trí vũ khí, tính đường đi
-        List<Node> restrictedNodes = getRestrictedNodes(gameMap);
-        String path = getShortestPath(gameMap, restrictedNodes, currentPosition, nearestNode, skipDarkArea);
-        System.out.println("Path tìm được: " + path);
-
-        if (path != null && !path.isEmpty()) {
-            String step = path.substring(0, 1);
-            hero.move(step);
-            System.out.println("Di chuyển: " + path);
+        if (distance(currentPosition, nearestNode) > 1) {
+            // Nếu không đứng trên vũ khí, di chuyển đến vị trí vũ khí
+            System.out.println("Đang di chuyển đến vũ khí gần nhất: " + nearestWeapon.getId() + " tại " + nearestNode);
+            moveToTarget(hero, nearestNode, gameMap);
         } else {
             // Nếu đã đứng trên vị trí vũ khí thì nhặt luôn, không di chuyển
             ItemManager.swapItem(gameMap, hero);

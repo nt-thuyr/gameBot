@@ -110,9 +110,6 @@ public class ItemManager {
                             } catch (IOException e) {
                                 System.out.println("Lỗi khi bỏ súng: " + e.getMessage());
                             }
-//                        Inventory heroWeapon = hero.getInventory();
-//                        heroWeapon.setGun(weapon);
-                            // return luôn, không nhặt ở lượt này!
                             System.out.println("Đã bỏ súng cũ, chờ lượt sau để nhặt " + weapon.getId());
                         }
                     }
@@ -130,9 +127,6 @@ public class ItemManager {
                             } catch (IOException e) {
                                 System.out.println("Lỗi khi bỏ vũ khí ném: " + e.getMessage());
                             }
-//                        Inventory heroWeapon = hero.getInventory();
-//                        heroWeapon.setThrowable(weapon);
-                            // return luôn, không nhặt ở lượt này!
                             System.out.println("Đã bỏ vũ khí cũ, chờ lượt sau để nhặt " + weapon.getId());
                         }
                     }
@@ -150,9 +144,6 @@ public class ItemManager {
                             } catch (IOException e) {
                                 System.out.println("Lỗi khi bỏ vũ khí cận chiến: " + e.getMessage());
                             }
-//                        Inventory heroWeapon = hero.getInventory();
-//                        heroWeapon.setMelee(weapon);
-                            // return luôn, không nhặt ở lượt này!
                             System.out.println("Đã bỏ vũ khí cũ, chờ lượt sau để nhặt " + weapon.getId());
                         }
                     }
@@ -170,9 +161,6 @@ public class ItemManager {
                             } catch (IOException e) {
                                 System.out.println("Lỗi khi bỏ vũ khí đặc biệt: " + e.getMessage());
                             }
-//                        Inventory heroWeapon = hero.getInventory();
-//                        heroWeapon.setSpecial(weapon);
-                            // return luôn, không nhặt ở lượt này!
                             System.out.println("Đã bỏ vũ khí cũ, chờ lượt sau để nhặt " + weapon.getId());
                         }
                     }
@@ -195,7 +183,6 @@ public class ItemManager {
                             } catch (IOException e) {
                                 System.out.println("Lỗi khi bỏ áo giáp: " + e.getMessage());
                             }
-                            // return luôn, không nhặt ở lượt này!
                             System.out.println("Đã bỏ giáp cũ, chờ lượt sau để nhặt " + armor.getId());
                         }
                     } else if (armor.getType().equals(ElementType.HELMET)) {
@@ -211,7 +198,6 @@ public class ItemManager {
                             } catch (IOException e) {
                                 System.out.println("Lỗi khi bỏ mũ: " + e.getMessage());
                             }
-                            // return luôn, không nhặt ở lượt này!
                             System.out.println("Đã bỏ giáp cũ, chờ lượt sau để nhặt " + armor.getId());
                         }
                     }
@@ -241,15 +227,12 @@ public class ItemManager {
         Player player = gameMap.getCurrentPlayer();
         Node currentPosition = player.getPosition();
 
-        // Nếu chưa ở vị trí vũ khí, tính đường đi
-        List<Node> restrictedNodes = Main.getRestrictedNodes(gameMap);
-        String path = getShortestPath(gameMap, restrictedNodes, currentPosition, targetChestNode, true);
-        System.out.println("Path tìm được: " + path);
-
-        if (path != null && path.length() > 1) {
-            String step = path.substring(0, 1);
-            hero.move(step);
-            System.out.println("Di chuyển: " + path);
+        if (distance(currentPosition, targetChestNode) > 1) {
+            try {
+                Main.moveToTarget(hero, targetChestNode, gameMap);
+            } catch (InterruptedException e) {
+                System.out.println("Lỗi khi di chuyển đến rương kho báu: " + e.getMessage());
+            }
         } else {
             if (targetChest.getHp() > 0) {
                 hero.attack(Main.getDirection(currentPosition, targetChestNode));
@@ -293,17 +276,10 @@ public class ItemManager {
                 swapItem(gameMap, hero);
                 System.out.println("Đã nhặt/lấy item tại vị trí hiện tại: " + bestItem.getId());
             } else {
-                // Di chuyển 1 bước về phía item gần nhất trong vùng
-                List<Node> restrictedNodes = Main.getRestrictedNodes(gameMap);
-                String path = getShortestPath(gameMap, restrictedNodes, cur, bestPos, true);
-                if (path != null && !path.isEmpty()) {
-                    String step = path.substring(0, 1);
-                    try {
-                        hero.move(step);
-                        System.out.println("Di chuyển loot item quanh player: " + path + " tới " + bestPos);
-                    } catch (IOException e) {
-                        System.out.println("Lỗi khi di chuyển loot: " + e.getMessage());
-                    }
+                try {
+                    Main.moveToTarget(hero, bestPos, gameMap);
+                } catch (IOException | InterruptedException e) {
+                    System.out.println("Lỗi khi di chuyển đến item: " + e.getMessage());
                 }
             }
             return true;
