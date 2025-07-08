@@ -16,15 +16,15 @@ public class EnemyTrajectoryCollector {
     }
 
     // Lưu: key -> lịch sử di chuyển
-    final Map<String, List<Node>> enemyHistory = new HashMap<>();
+    static final Map<String, List<Node>> enemyHistory = new HashMap<>();
     // Lưu vị trí spawn đầu tiên: Enemy reference -> startPos
-    final Map<Enemy, Node> enemySpawnPos = new HashMap<>();
+    static final Map<Enemy, Node> enemySpawnPos = new HashMap<>();
     // Đã đủ dữ liệu từng enemy
-    final Set<String> completedEnemies = new HashSet<>();
+    static final Set<String> completedEnemies = new HashSet<>();
     // key -> thông tin quỹ đạo
-    final Map<String, TrajectoryInfo> trajectoryMap = new HashMap<>();
+    static final Map<String, TrajectoryInfo> trajectoryMap = new HashMap<>();
     // Đánh dấu đã đủ dữ liệu cho tất cả enemy
-    boolean ready = false;
+    static boolean ready = false;
 
      static class TrajectoryInfo {
         public final List<Node> path;      // Quỹ đạo (danh sách node đi qua theo thứ tự)
@@ -45,7 +45,7 @@ public class EnemyTrajectoryCollector {
      * Gọi hàm này mỗi tick đầu game để thu thập lịch sử vị trí enemy.
      * Khi đã đủ dữ liệu, manager sẽ tự động dừng.
      */
-     void collect(GameMap gameMap, int currentTick) {
+    static void collect(GameMap gameMap, int currentTick) {
         if (ready) return;
         List<Enemy> enemies = gameMap.getListEnemies();
         // Bước 1: mapping từng cá thể enemy hiện tại với key duy nhất
@@ -94,12 +94,12 @@ public class EnemyTrajectoryCollector {
     }
 
     /** Đã đủ dữ liệu cho mọi enemy cá thể? */
-    boolean isReady() {
+    static boolean isReady() {
         return ready;
     }
 
     /** Lấy TrajectoryInfo của enemy theo key (id + spawn pos) */
-     TrajectoryInfo getTrajectory(String id, Node spawnPos) {
+    static TrajectoryInfo getTrajectory(String id, Node spawnPos) {
         return trajectoryMap.get(getEnemyKey(id, spawnPos));
     }
 

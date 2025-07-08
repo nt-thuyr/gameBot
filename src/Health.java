@@ -17,7 +17,7 @@ public class Health {
         List<Ally> allies = gameMap.getListAllies();
 
         for (Ally ally : allies) {
-            if (distance(currentPosition, ally.getPosition()) <= 2) {
+            if (distance(currentPosition, ally.getPosition()) <= 4 && ally.getCooldownStepLeft() <= 1) {
                 return new Node(ally.getX(), ally.getX());
             }
         }
@@ -47,18 +47,23 @@ public class Health {
         }
     }
 
-    static void healByAlly(GameMap gameMap, Hero hero) {
+    static boolean healByAlly(GameMap gameMap, Hero hero) {
         Node allyNode = checkIfHasNearbyAlly(gameMap);
         if (allyNode != null) {
             System.out.println("Đã tìm thấy ally ở gần");
             moveToAlley(gameMap, allyNode, hero);
         } else {
             System.out.println("Không có ally gần để hồi máu");
+            return false;
         }
+        return true;
     }
 
     // Phương thức hỗ trợ để tìm vật phẩm hồi máu phù hợp nhất dựa trên lostHp
     static SupportItem findBestHealingItem(List<SupportItem> supportItems, float lostHp) {
+        if (supportItems == null || supportItems.isEmpty()) {
+            return null; // Không có vật phẩm hồi máu
+        }
         SupportItem bestItem = null;
         float bestHealingHp = Float.MAX_VALUE;
         // Chọn item healing >= lostHp nhỏ nhất, nếu không có thì healing lớn nhất nhỏ hơn lostHp

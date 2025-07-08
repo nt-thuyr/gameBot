@@ -14,8 +14,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static jsclub.codefest.sdk.algorithm.PathUtils.distance;
-import static jsclub.codefest.sdk.algorithm.PathUtils.getShortestPath;
+import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class ItemManager {
 
@@ -212,8 +211,13 @@ public class ItemManager {
     static Obstacle checkIfHasChest(GameMap gameMap) {
         Player player = gameMap.getCurrentPlayer();
         Node currentPosition = player.getPosition();
+
+        int safeZone = gameMap.getSafeZone();
+        int mapSize = gameMap.getMapSize();
+
         for (Obstacle obstacle : gameMap.getListObstacles()) {
-            if (distance(currentPosition, obstacle.getPosition()) <= 3 && "CHEST".equals(obstacle.getId())) {
+            if (!checkInsideSafeArea(obstacle, safeZone, mapSize)) continue;
+            if (distance(currentPosition, obstacle.getPosition()) <= 5 && "CHEST".equals(obstacle.getId())) {
                 System.out.println("Có rương kho báu gần đây, hãy mở nó!");
                 return obstacle;
             }
@@ -240,20 +244,22 @@ public class ItemManager {
         }
     }
 
-    public static boolean lootNearbyItems(Hero hero, GameMap gameMap) {
+    public static boolean lootNearbyItems(Hero hero, GameMap gameMap, int lootRadius) {
         Node cur = gameMap.getCurrentPlayer().getPosition();
         List<Element> items = new ArrayList<>();
         items.addAll(gameMap.getListSupportItems());
         items.addAll(gameMap.getListWeapons());
         items.addAll(gameMap.getListArmors());
 
-        int lootRadius = 5; // bán kính 5 => vùng 10x10
-
         Element bestItem = null;
         Node bestPos = null;
         int minDist = Integer.MAX_VALUE;
 
+        int safeZone = gameMap.getSafeZone();
+        int mapSize = gameMap.getMapSize();
+
         for (Element item : items) {
+            if (!checkInsideSafeArea(item, safeZone, mapSize)) continue;
             if (item.getPosition() == null) continue;
             int dist = distance(cur, item.getPosition());
             if (dist <= lootRadius) {

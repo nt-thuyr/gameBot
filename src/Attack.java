@@ -1,6 +1,10 @@
 import jsclub.codefest.sdk.Hero;
 import jsclub.codefest.sdk.base.Node;
+import jsclub.codefest.sdk.model.Element;
+import jsclub.codefest.sdk.model.ElementType;
 import jsclub.codefest.sdk.model.GameMap;
+import jsclub.codefest.sdk.model.obstacles.Obstacle;
+import jsclub.codefest.sdk.model.obstacles.ObstacleTag;
 import jsclub.codefest.sdk.model.players.Player;
 import jsclub.codefest.sdk.model.weapon.Weapon;
 
@@ -8,6 +12,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 
+import static jsclub.codefest.sdk.algorithm.PathUtils.checkInsideSafeArea;
 import static jsclub.codefest.sdk.algorithm.PathUtils.distance;
 
 public class Attack {
@@ -18,30 +23,66 @@ public class Attack {
     private static long lastMeleeTime = 0;      // Thời điểm tấn công cận chiến gần nhất
     private static final long STEP_TIME = 500;  // Thời gian 1 step game là 500ms
 
-    static boolean isInsideRange(int[] range, Node from, Node to, String direction) {
-        int width = range[0];
-        int depth = range[1];
-        int px = from.getX();
-        int py = from.getY();
-        int tx = to.getX();
-        int ty = to.getY();
-        int halfWidth = width / 2;
+    static boolean isInsideRange(GameMap gameMap, Weapon weapon, Node from, Node to, String direction) {
+        int width, depth, halfWidth, halfDepth;
+        int playerX = from.getX();
+        int playerY = from.getY();
+        int targetX = to.getX();
+        int targetY = to.getY();
 
-        return switch (direction) {
-            case "u" ->
-                // Hướng lên: y tăng
-                    (ty > py && ty <= py + depth) && (tx >= px - halfWidth && tx <= px + halfWidth);
-            case "d" ->
-                // Hướng xuống: y giảm
-                    (ty < py && ty >= py - depth) && (tx >= px - halfWidth && tx <= px + halfWidth);
-            case "l" ->
-                // Hướng trái: x giảm
-                    (tx < px && tx >= px - depth) && (ty >= py - halfWidth && ty <= py + halfWidth);
-            case "r" ->
-                // Hướng phải: x tăng
-                    (tx > px && tx <= px + depth) && (ty >= py - halfWidth && ty <= py + halfWidth);
-            default -> false;
-        };
+        if (weapon.getType().equals(ElementType.THROWABLE)) {
+            width = depth = weapon.getExplodeRange();
+            halfWidth = width / 2;
+            halfDepth = depth / 2;
+
+            int throwRange = weapon.getRange()[1];
+
+            return switch (direction) {
+                case "u" -> // hướng lên, y tăng
+                        (targetY > playerY + throwRange - halfDepth && targetY <= playerY + throwRange + halfDepth) &&
+                                (targetX >= playerX - halfWidth && targetX <= playerX + halfWidth);
+                case "d" -> // hướng xuống, y giảm
+                        (targetY < playerY - throwRange + halfDepth && targetY >= playerY - throwRange - halfDepth) &&
+                                (targetX >= playerX - halfWidth && targetX <= playerX + halfWidth);
+                case "l" -> // hướng trái, x giảm
+                        (targetX < playerX - throwRange + halfDepth && targetX >= playerX - throwRange - halfDepth) &&
+                                (targetY >= playerY - halfWidth && targetY <= playerY + halfWidth);
+                case "r" -> // hướng phải, x tăng
+                        (targetX > playerX + throwRange - halfDepth && targetX <= playerX + throwRange + halfDepth) &&
+                                (targetY >= playerY - halfWidth && targetY <= playerY + halfWidth);
+                default -> false; // hướng không hợp lệ
+            };
+        } else {
+            // Kiểm tra chướng ngại vật trên đường bắn
+            for (int y = playerY; y <= targetY; y++) {
+                for (int x = playerX; x <= targetX; x++) {
+                    Element obstacle = gameMap.getElementByIndex(x, y);
+                    if (obstacle instanceof Obstacle && !((Obstacle) obstacle).getTags().contains(ObstacleTag.CAN_SHOOT_THROUGH)) {
+                        return false; // Có chướng ngại vật trên đường bắn
+                    }
+                }
+            }
+
+            width = weapon.getRange()[0];
+            depth = weapon.getRange()[1];
+            halfWidth = width / 2;
+
+            return switch (direction) {
+                case "u" -> // hướng lên, y tăng
+                        (targetY > playerY && targetY <= playerY + depth) &&
+                                (targetX >= playerX - halfWidth && targetX <= playerX + halfWidth);
+                case "d" -> // hướng xuống, y giảm
+                        (targetY < playerY && targetY >= playerY - depth) &&
+                                (targetX >= playerX - halfWidth && targetX <= playerX + halfWidth);
+                case "l" -> // hướng trái, x giảm
+                        (targetX < playerX && targetX >= playerX - depth) &&
+                                (targetY >= playerY - halfWidth && targetY <= playerY + halfWidth);
+                case "r" -> // hướng phải, x tăng
+                        (targetX > playerX && targetX <= playerX + depth) &&
+                                (targetY >= playerY - halfWidth && targetY <= playerY + halfWidth);
+                default -> false; // hướng không hợp lệ
+            };
+        }
     }
 
 
@@ -77,6 +118,7 @@ public class Attack {
 
         Player nearest = null;
         int minDist = Integer.MAX_VALUE;
+
         for (Player p : players) {
             if (p.getPosition() == null || p.getHealth() <= 0) continue;
             int dist = distance(currentPosition, p.getPosition());
@@ -106,24 +148,8 @@ public class Attack {
 
         boolean attacked = false;
 
-        // Bắn súng nếu trong tầm và hết cooldown
-        if (gun != null && isInsideRange(gun.getRange(), currentPosition, targetNode, direction)
-                && System.currentTimeMillis() - lastShotTime >= gun.getCooldown() * STEP_TIME) {
-            hero.shoot(direction); // Bắn lần 1
-            System.out.println("Bắn súng lần 1 về hướng " + direction);
-            // Thử bắn lần 2 để kiểm tra trick bỏ qua cooldown
-            try {
-                hero.shoot(direction);
-                System.out.println("Thử bắn súng lần 2 ngay lập tức về hướng " + direction);
-            } catch (IOException e) {
-                System.out.println("Lỗi khi thử bắn súng lần 2: " + e.getMessage());
-            }
-            lastShotTime = System.currentTimeMillis();
-            attacked = true;
-        }
-
         // Ném vật phẩm nếu trong tầm và hết cooldown
-        if (throwable != null && isInsideRange(throwable.getRange(), currentPosition, targetNode, direction)
+        if (throwable != null && isInsideRange(gameMap, throwable, currentPosition, targetNode, direction)
                 && System.currentTimeMillis() - lastThrowTime >= throwable.getCooldown() * STEP_TIME) {
             hero.throwItem(direction); // Ném lần 1
             System.out.println("Ném vật phẩm lần 1 về hướng " + direction);
@@ -139,7 +165,7 @@ public class Attack {
         }
 
         // Dùng vũ khí đặc biệt nếu trong tầm và hết cooldown
-        if (special != null && isInsideRange(special.getRange(), currentPosition, targetNode, direction)
+        if (special != null && isInsideRange(gameMap, special, currentPosition, targetNode, direction)
                 && System.currentTimeMillis() - lastSpecialTime >= special.getCooldown() * STEP_TIME) {
             hero.useSpecial(direction); // Dùng lần 1
             System.out.println("Dùng vũ khí đặc biệt lần 1 về hướng " + direction);
@@ -154,8 +180,24 @@ public class Attack {
             attacked = true;
         }
 
+        // Bắn súng nếu trong tầm và hết cooldown
+        if (gun != null && isInsideRange(gameMap, gun, currentPosition, targetNode, direction)
+                && System.currentTimeMillis() - lastShotTime >= gun.getCooldown() * STEP_TIME) {
+            hero.shoot(direction); // Bắn lần 1
+            System.out.println("Bắn súng lần 1 về hướng " + direction);
+            // Thử bắn lần 2 để kiểm tra trick bỏ qua cooldown
+            try {
+                hero.shoot(direction);
+                System.out.println("Thử bắn súng lần 2 ngay lập tức về hướng " + direction);
+            } catch (IOException e) {
+                System.out.println("Lỗi khi thử bắn súng lần 2: " + e.getMessage());
+            }
+            lastShotTime = System.currentTimeMillis();
+            attacked = true;
+        }
+
         // Tấn công cận chiến nếu trong tầm và hết cooldown
-        if (isInsideRange(melee.getRange(), currentPosition, targetNode, direction)
+        if (isInsideRange(gameMap, melee, currentPosition, targetNode, direction)
                 && System.currentTimeMillis() - lastMeleeTime >= melee.getCooldown() * STEP_TIME) {
             hero.attack(direction); // Tấn công lần 1
             System.out.println("Tấn công cận chiến lần 1 vào mục tiêu ở hướng " + direction);
@@ -170,6 +212,6 @@ public class Attack {
             attacked = true;
         }
 
-        return attacked; // Trả về true nếu tấn công thành công bằng cả 4 vũ khí
+        return attacked; // Trả về true nếu tấn công thành công bằng 1 vũ khí
     }
 }
