@@ -292,4 +292,13 @@ public class ItemManager {
         }
         return false;
     }
+
+    public static Obstacle hasEgg(GameMap gameMap) {
+        for (Element element : gameMap.getListObstacles()) {
+            if (element instanceof Obstacle obstacle && "EGG".equals(obstacle.getId())) {
+                return obstacle; // Có ít nhất 1 quả trứng
+            }
+        }
+        return null; // Không có quả trứng nào
+    }
 }

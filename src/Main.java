@@ -35,6 +35,7 @@ public class Main {
         Emitter.Listener onMapUpdate = new Emitter.Listener() {
             @Override
             public void call(Object... args) {
+                tickCount++;
                 GameMap gameMap = hero.getGameMap();
                 gameMap.updateOnUpdateMap(args[0]);
 
@@ -58,6 +59,27 @@ public class Main {
                             }
                             return;
                         }
+                    }
+                }
+
+                Obstacle targetEgg = ItemManager.hasEgg(gameMap);
+                if (targetEgg != null && distance(gameMap.getCurrentPlayer().getPosition(), targetEgg.getPosition()) <= 5) {
+                    lastChestPosition = new Node(targetEgg.getX(), targetEgg.getY());
+                    lastChest = targetEgg;
+                    try {
+                        ItemManager.openChest(gameMap, hero, targetEgg);
+                    } catch (IOException e) {
+                        System.out.println("Lỗi khi phá trứng: " + e.getMessage());
+                    }
+                    return;
+                }
+
+                // Nếu vừa phá xong trứng, còn item quanh trứng thì nhặt
+                if (lastChestPosition != null) {
+                    if (ItemManager.lootNearbyItems(hero, gameMap)) {
+                        return; // Ưu tiên nhặt item quanh rương, xong mới làm việc khác
+                    } else {
+                        lastChestPosition = null; // Không còn item quanh, reset
                     }
                 }
 
@@ -167,32 +189,39 @@ public class Main {
 
     public static List<Node> getRestrictedNodes(GameMap gameMap) {
         List<Node> restrictedNodes = new ArrayList<>();
+        int enemyRange = 2; // 3x3 vùng quanh enemy
+        int futureTickCount = 1; // Số tick dự đoán (có thể tăng lên 3 nếu muốn an toàn hơn)
 
-        int enemyRange = 2; // Tránh cả vùng quanh enemy
 
-        // Tránh quái vật (dùng trajectory nếu có)
         for (Enemy enemy : gameMap.getListEnemies()) {
             if (enemy.getPosition() == null) continue;
 
-            // Lấy đúng spawnPos ban đầu để xác định trajectory key
+
             Node spawnPos = EnemyTrajectoryCollector.enemySpawnPos.get(enemy);
-            if (spawnPos == null) {
-                // Nếu chưa lưu spawnPos, fallback về vị trí hiện tại
-                spawnPos = enemy.getPosition();
-            }
+            if (spawnPos == null) spawnPos = enemy.getPosition();
 
-            Node dangerPos = enemy.getPosition();
+
+            // Nếu collector đã sẵn sàng: tránh các ô enemy sẽ đứng ở tick tiếp theo
             if (EnemyTrajectoryCollector.isReady()) {
-                EnemyTrajectoryCollector.TrajectoryInfo info = EnemyTrajectoryCollector.getTrajectory(enemy.getId(), spawnPos);
+                EnemyTrajectoryCollector.TrajectoryInfo info = collector.getTrajectory(enemy.getId(), spawnPos);
                 if (info != null) {
-                    // Dự đoán vị trí enemy ở tick tiếp theo (hoặc +2 nếu muốn)
-                    dangerPos = info.getPositionAtTick(tickCount + 1);
+                    for (int future = 1; future <= futureTickCount; future++) {
+                        Node dangerPos = info.getPositionAtTick(tickCount + future - 1);
+                        for (int dx = -enemyRange; dx <= enemyRange; dx++) {
+                            for (int dy = -enemyRange; dy <= enemyRange; dy++) {
+                                restrictedNodes.add(new Node(dangerPos.getX() + dx, dangerPos.getY() + dy));
+                            }
+                        }
+                    }
                 }
-            }
-
-            for (int dx = -enemyRange; dx <= enemyRange; dx++) {
-                for (int dy = -enemyRange; dy <= enemyRange; dy++) {
-                    restrictedNodes.add(new Node(dangerPos.getX() + dx, dangerPos.getY() + dy));
+            } else {
+                // Nếu chưa đủ dữ liệu trajectory, tránh xa hơn vùng hiện tại!
+                int cautiousRange = 2; // 5x5 vùng
+                Node dangerPos = enemy.getPosition();
+                for (int dx = -cautiousRange; dx <= cautiousRange; dx++) {
+                    for (int dy = -cautiousRange; dy <= cautiousRange; dy++) {
+                        restrictedNodes.add(new Node(dangerPos.getX() + dx, dangerPos.getY() + dy));
+                    }
                 }
             }
         }
@@ -251,7 +280,7 @@ public class Main {
         for (Weapon weapon : weapons) {
             if (ItemManager.pickupable(hero, weapon)) {
                 Node weaponNode = weapon.getPosition();
-                if (skipDarkArea && !checkInsideSafeArea(weaponNode, safeZone, mapSize)) continue;
+                if (!skipDarkArea && !checkInsideSafeArea(weaponNode, safeZone, mapSize)) continue;
                 int dist = distance(currentPosition, weaponNode);
                 if (dist < minDistance) {
                     minDistance = dist;
@@ -300,7 +329,7 @@ public class Main {
         }
 
         if (path == null || path.isEmpty()) {
-            System.out.println("Không tìm thấy đường đi đến mục tiêu: " + gameMap.getElementByIndex(targetNode.x, targetNode.y).getId());
+            System.out.println("Không tìm thấy đường đi đến mục tiêu!");
             Main.lockedTarget = null; // Reset mục tiêu nếu không đến được
             return;
         }
