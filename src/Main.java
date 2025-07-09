@@ -16,7 +16,7 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "168996";
+    private static final String GAME_ID = "132584";
     private static final String PLAYER_NAME = "botable";
     private static final String SECRET_KEY = "sk-9tCiKF60Sxi0KVc1ZtiQdw:mGiTucg2md7pM_jn7C19ZKq_KTUJIhBlnOUYLE5mEgH42V86LMruay6aH7TnYe1m_MmCok6c3KiTWJS0IjkJBg";
 
@@ -34,6 +34,7 @@ public class Main {
         Emitter.Listener onMapUpdate = new Emitter.Listener() {
             @Override
             public void call(Object... args) {
+                tickCount++;
                 GameMap gameMap = hero.getGameMap();
                 gameMap.updateOnUpdateMap(args[0]);
 
@@ -55,6 +56,23 @@ public class Main {
                         return;
                     } else {
                         Health.healByAlly(gameMap, hero); // Nếu gần đó có ally thì chạy tới chỗ ally
+                    }
+                }
+
+                Obstacle targetEgg = ItemManager.hasEgg(gameMap);
+                if (targetEgg != null && distance(gameMap.getCurrentPlayer().getPosition(), targetEgg.getPosition()) <= 5) {
+                    lastChestPosition = new Node(targetEgg.getX(), targetEgg.getY());
+                    lastChest = targetEgg;
+                    ItemManager.openEgg(gameMap, hero, targetEgg);
+                    return;
+                }
+
+                // Nếu vừa phá xong trứng, còn item quanh trứng thì nhặt
+                if (lastChestPosition != null) {
+                    if (ItemManager.lootNearbyItems(hero, gameMap)) {
+                        return; // Ưu tiên nhặt item quanh rương, xong mới làm việc khác
+                    } else {
+                        lastChestPosition = null; // Không còn item quanh, reset
                     }
                 }
 
@@ -176,35 +194,43 @@ public class Main {
 
     public static List<Node> getRestrictedNodes(GameMap gameMap) {
         List<Node> restrictedNodes = new ArrayList<>();
+        int enemyRange = 2; // 3x3 vùng quanh enemy
+        int futureTickCount = 1; // Số tick dự đoán (có thể tăng lên 3 nếu muốn an toàn hơn)
 
-        int enemyRange = 3; // Tránh cả vùng quanh enemy
 
-        // Tránh quái vật (dùng trajectory nếu có)
         for (Enemy enemy : gameMap.getListEnemies()) {
             if (enemy.getPosition() == null) continue;
 
-            // Lấy đúng spawnPos ban đầu để xác định trajectory key
-            Node spawnPos = collector.enemySpawnPos.get(enemy);
-            if (spawnPos == null) {
-                // Nếu chưa lưu spawnPos, fallback về vị trí hiện tại
-                spawnPos = enemy.getPosition();
-            }
 
-            Node dangerPos = enemy.getPosition();
+            Node spawnPos = collector.enemySpawnPos.get(enemy);
+            if (spawnPos == null) spawnPos = enemy.getPosition();
+
+
+            // Nếu collector đã sẵn sàng: tránh các ô enemy sẽ đứng ở tick tiếp theo
             if (collector.isReady()) {
                 EnemyTrajectoryCollector.TrajectoryInfo info = collector.getTrajectory(enemy.getId(), spawnPos);
                 if (info != null) {
-                    // Dự đoán vị trí enemy ở tick tiếp theo (hoặc +2 nếu muốn)
-                    dangerPos = info.getPositionAtTick(tickCount + 1);
+                    for (int future = 1; future <= futureTickCount; future++) {
+                        Node dangerPos = info.getPositionAtTick(tickCount + future - 1);
+                        for (int dx = -enemyRange; dx <= enemyRange; dx++) {
+                            for (int dy = -enemyRange; dy <= enemyRange; dy++) {
+                                restrictedNodes.add(new Node(dangerPos.getX() + dx, dangerPos.getY() + dy));
+                            }
+                        }
+                    }
                 }
-            }
-
-            for (int dx = -enemyRange; dx <= enemyRange; dx++) {
-                for (int dy = -enemyRange; dy <= enemyRange; dy++) {
-                    restrictedNodes.add(new Node(dangerPos.getX() + dx, dangerPos.getY() + dy));
+            } else {
+                // Nếu chưa đủ dữ liệu trajectory, tránh xa hơn vùng hiện tại!
+                int cautiousRange = 2; // 5x5 vùng
+                Node dangerPos = enemy.getPosition();
+                for (int dx = -cautiousRange; dx <= cautiousRange; dx++) {
+                    for (int dy = -cautiousRange; dy <= cautiousRange; dy++) {
+                        restrictedNodes.add(new Node(dangerPos.getX() + dx, dangerPos.getY() + dy));
+                    }
                 }
             }
         }
+
 
         // Tránh chướng ngại vật
         for (Obstacle obstacle : gameMap.getListObstacles()) {

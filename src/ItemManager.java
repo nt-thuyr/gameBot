@@ -286,4 +286,33 @@ public class ItemManager {
         }
         return false;
     }
+
+    public static Obstacle hasEgg(GameMap gameMap) {
+        for (Element element : gameMap.getListObstacles()) {
+            if (element instanceof Obstacle obstacle && "EGG".equals(obstacle.getId())) {
+                return obstacle; // Có ít nhất 1 quả trứng
+            }
+        }
+        return null; // Không có quả trứng nào
+    }
+
+
+    public static void openEgg(GameMap gameMap, Hero hero, Obstacle targetEgg) {
+        if (targetEgg != null) {
+            Node eggPosition = targetEgg.getPosition();
+            Player currentPlayer = gameMap.getCurrentPlayer();
+            Node currentPosition = currentPlayer.getPosition();
+            try {
+                Main.moveToTarget(hero, eggPosition, gameMap);
+            } catch (IOException | InterruptedException e) {
+                System.out.println("Lỗi khi di chuyển đến quả trứng: " + e.getMessage());
+            }
+            try {
+                openChest(gameMap, hero, targetEgg);
+            } catch (IOException e) {
+                System.out.println("Lỗi khi mở trứng: " + e.getMessage());
+            }
+        }
+    }
+
 }
