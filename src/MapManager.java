@@ -13,14 +13,14 @@ public class MapManager {
     private static final int SAFETY_RADIUS = 10; // Bán kính an toàn
 
     public static class AreaInfo {
-        public int x, y; // Tọa độ trung tâm khu vực
-        public int playerCount; // Số lượng người chơi
-        public double density; // Mật độ (người chơi/diện tích)
+        public int x, y;            // Tọa độ trung tâm khu vực
+        public int playerCount;     // Số lượng người chơi
+        public double density;      // Mật độ (người chơi/diện tích)
         public List<Player> playersInArea; // Danh sách người chơi trong khu vực
-        public boolean hasChest; // Có rương không
-        public boolean hasEgg; // Có trứng không
-        public double dangerLevel; // Mức độ nguy hiểm (0-1)
-        public double distance; // Khoảng cách từ vị trí hiện tại
+        public boolean hasChest;    // Có rương không
+        public boolean hasEgg;      // Có trứng không
+        public double dangerLevel;  // Mức độ nguy hiểm (0-1)
+        public double distance;     // Khoảng cách từ vị trí hiện tại
 
         public AreaInfo(int x, int y) {
             this.x = x;

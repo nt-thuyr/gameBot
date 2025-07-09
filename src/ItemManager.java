@@ -231,6 +231,14 @@ public class ItemManager {
         Player player = gameMap.getCurrentPlayer();
         Node currentPosition = player.getPosition();
 
+        Weapon specialWeapon = hero.getInventory().getSpecial();
+        if (targetChest.getId().equals("DRAGON_EGG") && specialWeapon != null && specialWeapon.getId().equals("ROPE")) {
+            String direction = Main.getDirection(currentPosition, targetChestNode);
+            if (distance(currentPosition, targetChestNode) > 3 && Attack.isInsideRange(gameMap, specialWeapon, currentPosition, targetChestNode, direction)) {
+                hero.useSpecial(direction);
+            }
+        }
+
         if (distance(currentPosition, targetChestNode) > 1) {
             try {
                 Main.moveToTarget(hero, targetChestNode, gameMap);

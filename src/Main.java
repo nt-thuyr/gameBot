@@ -17,7 +17,7 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "176421";
+    private static final String GAME_ID = "188052";
     private static final String PLAYER_NAME = "botable";
     private static final String SECRET_KEY = "sk-9tCiKF60Sxi0KVc1ZtiQdw:mGiTucg2md7pM_jn7C19ZKq_KTUJIhBlnOUYLE5mEgH42V86LMruay6aH7TnYe1m_MmCok6c3KiTWJS0IjkJBg";
 
@@ -39,13 +39,14 @@ public class Main {
             @Override
             public void call(Object... args) {
                 tickCount++;
+
                 GameMap gameMap = hero.getGameMap();
                 gameMap.updateOnUpdateMap(args[0]);
 
-                EnemyTrajectoryCollector.collect(gameMap, tickCount);
+                EnemyTrajectoryCollector.collect(gameMap, gameMap.getStepNumber());
 
                 float currentHealth = gameMap.getCurrentPlayer().getHealth();
-                System.out.println("Current Health: " + currentHealth);
+                System.out.println("========== Tick: " + tickCount + " ==========");
 
                 // Phân tích area density định kỳ (mỗi 15 tick)
                 if (tickCount - lastDensityCheck >= 15) {
@@ -56,7 +57,7 @@ public class Main {
                 Health.useSpecialSupportItem(gameMap, hero);
 
                 // Ưu tiên 1: Nếu đang trong chế độ retreat
-                System.out.println("Retreat: " + (retreatTarget != null ? retreatTarget : "Không"));
+                System.out.println("Health: " + currentHealth + ". Retreat: " + (retreatTarget != null ? retreatTarget : "Không"));
                 if (retreatTarget != null) {
                     if (executeRetreat(gameMap, hero)) {
                         return; // Đã di chuyển, không làm gì khác
@@ -151,16 +152,6 @@ public class Main {
                         System.out.println("Lỗi khi mo ruong: " + e.getMessage());
                     }
                     return;
-                }
-
-                // Nếu vừa phá xong rương, còn item quanh rương thì nhặt
-                if (lastChestPosition != null) {
-                    lootRadius = 5;
-                    if (ItemManager.lootNearbyItems(hero, gameMap, lootRadius)) {
-                        return; // Ưu tiên nhặt item quanh rương, xong mới làm việc khác
-                    } else {
-                        lastChestPosition = null; // Không còn item quanh, reset
-                    }
                 }
 
                 // Ưu tiên 7: loot item tốt hơn xung quanh nếu có
@@ -359,14 +350,12 @@ public class Main {
             Weapon melee = hero.getInventory().getMelee();
             Weapon throwable = hero.getInventory().getThrowable();
 
-            if ((gun != null && Attack.isInsideRange(gameMap, gun, currentPosition, targetNode, getDirection(currentPosition, targetNode)) ||
-                    Attack.isInsideRange(gameMap, melee, currentPosition, targetNode, getDirection(currentPosition, targetNode))) ||
-            (throwable != null && Attack.isInsideRange(gameMap, throwable, currentPosition, targetNode, getDirection(currentPosition, targetNode)))) {
-                return; // Nếu có thể tấn công từ vị trí hiện tại, không cần di chuyển
-            } else {
+            if (((gun == null || !Attack.isInsideRange(gameMap, gun, currentPosition, targetNode, getDirection(currentPosition, targetNode))) &&
+                    !Attack.isInsideRange(gameMap, melee, currentPosition, targetNode, getDirection(currentPosition, targetNode))) &&
+                    (throwable == null || !Attack.isInsideRange(gameMap, throwable, currentPosition, targetNode, getDirection(currentPosition, targetNode)))) {
                 Main.lockedTarget = null; // Reset mục tiêu nếu không thể tấn công
-                return;
             }
+            return; // Nếu có thể tấn công từ vị trí hiện tại, không cần di chuyển
         }
 
         hero.move(step);

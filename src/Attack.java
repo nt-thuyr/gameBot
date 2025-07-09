@@ -185,8 +185,8 @@ public class Attack {
         // Ném vật phẩm nếu trong tầm và hết cooldown
         if (isInsideRange(gameMap, throwable, currentPosition, targetNode, direction)
                 && gameMap.getStepNumber() - lastThrowStep >= throwable.getCooldown()) {
-            hero.throwItem(direction); // Ném lần 1
-            System.out.println("Ném vật phẩm lần 1 về hướng " + direction);
+            hero.throwItem(direction);
+            System.out.println("Ném vật phẩm về hướng " + direction);
             lastThrowStep = gameMap.getStepNumber();
             attacked = true;
         }
@@ -194,17 +194,22 @@ public class Attack {
         // Dùng vũ khí đặc biệt nếu trong tầm và hết cooldown
         if (isInsideRange(gameMap, special, currentPosition, targetNode, direction)
                 && gameMap.getStepNumber() - lastSpecialStep >= special.getCooldown()) {
-            hero.useSpecial(direction); // Dùng lần 1
-            System.out.println("Dùng vũ khí đặc biệt lần 1 về hướng " + direction);
-            lastSpecialStep = gameMap.getStepNumber();
-            attacked = true;
+            // Không sử dụng rope với kẻ địch ở gần
+            if ((special.getId().equals("ROPE") && distance(currentPosition, targetNode) > 2 &&
+                    (gun.getId().equals("SHOTGUN") || melee.getDamage() >= 40)) ||
+                    !special.getId().equals("ROPE")) {
+                hero.useSpecial(direction);
+                System.out.println("Dùng vũ khí đặc biệt về hướng " + direction);
+                lastSpecialStep = gameMap.getStepNumber();
+                attacked = true;
+            }
         }
 
         // Bắn súng nếu trong tầm và hết cooldown
         if (isInsideRange(gameMap, gun, currentPosition, targetNode, direction)
                 && gameMap.getStepNumber() - lastShotStep >= gun.getCooldown()) {
-            hero.shoot(direction); // Bắn lần 1
-            System.out.println("Bắn súng lần 1 về hướng " + direction);
+            hero.shoot(direction);
+            System.out.println("Bắn súng về hướng " + direction);
             lastShotStep = gameMap.getStepNumber();
             attacked = true;
         }
@@ -212,8 +217,8 @@ public class Attack {
         // Tấn công cận chiến nếu trong tầm và hết cooldown
         if (isInsideRange(gameMap, melee, currentPosition, targetNode, direction)
                 && gameMap.getStepNumber() - lastMeleeStep >= melee.getCooldown()) {
-            hero.attack(direction); // Tấn công lần 1
-            System.out.println("Tấn công cận chiến lần 1 vào mục tiêu ở hướng " + direction);
+            hero.attack(direction);
+            System.out.println("Tấn công cận chiến về hướng " + direction);
             lastMeleeStep = gameMap.getStepNumber();
             attacked = true;
         }
