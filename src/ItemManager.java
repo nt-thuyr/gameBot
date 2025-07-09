@@ -293,10 +293,56 @@ public class ItemManager {
         return false;
     }
 
+    public static void pickUpNearestWeapon(Hero hero, GameMap gameMap) throws IOException, InterruptedException {
+        List<Weapon> weapons = gameMap.getListWeapons();
+        if (weapons == null || weapons.isEmpty()) {
+            System.out.println("Không tìm thấy vũ khí trên bản đồ!");
+            return;
+        }
+
+        Node currentPosition = gameMap.getCurrentPlayer().getPosition();
+
+        Weapon nearestWeapon = null;
+        int minDistance = Integer.MAX_VALUE;
+        Node nearestNode = null;
+
+        int safeZone = gameMap.getSafeZone();
+        int mapSize = gameMap.getMapSize();
+
+        for (Weapon weapon : weapons) {
+            if (ItemManager.pickupable(hero, weapon)) {
+                Node weaponNode = weapon.getPosition();
+                if (!checkInsideSafeArea(weaponNode, safeZone, mapSize)) continue;
+                int dist = distance(currentPosition, weaponNode);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    nearestWeapon = weapon;
+                    nearestNode = weaponNode;
+                }
+            }
+        }
+
+        if (nearestWeapon == null) {
+            System.out.println("Không tìm thấy vũ khí hợp lệ trong vùng an toàn!");
+            return;
+        }
+
+        if (distance(currentPosition, nearestNode) > 0) {
+            // Nếu không đứng trên vũ khí, di chuyển đến vị trí vũ khí
+            System.out.println("Đang di chuyển đến vũ khí gần nhất: " + nearestWeapon.getId() + " tại " + nearestNode);
+            Main.moveToTarget(hero, nearestNode, gameMap);
+        } else {
+            // Nếu đã đứng trên vị trí vũ khí thì nhặt luôn, không di chuyển
+            ItemManager.swapItem(gameMap, hero);
+            System.out.println("Đang đứng trên vũ khí, thực hiện nhặt.");
+        }
+    }
+
     public static Obstacle hasEgg(GameMap gameMap) {
-        for (Element element : gameMap.getListObstacles()) {
-            if (element instanceof Obstacle obstacle && "EGG".equals(obstacle.getId())) {
-                return obstacle; // Có ít nhất 1 quả trứng
+        List<Obstacle> obstacles = gameMap.getListObstacles();
+        for (Obstacle chest : obstacles) {
+            if ("DRAGON_EGG".equals(chest.getId())) {
+                return chest; // Có ít nhất 1 quả trứng
             }
         }
         return null; // Không có quả trứng nào

@@ -3,6 +3,7 @@ import jsclub.codefest.sdk.base.Node;
 import jsclub.codefest.sdk.model.Element;
 import jsclub.codefest.sdk.model.ElementType;
 import jsclub.codefest.sdk.model.GameMap;
+import jsclub.codefest.sdk.model.Inventory;
 import jsclub.codefest.sdk.model.obstacles.Obstacle;
 import jsclub.codefest.sdk.model.obstacles.ObstacleTag;
 import jsclub.codefest.sdk.model.players.Player;
@@ -12,18 +13,30 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 
-import static jsclub.codefest.sdk.algorithm.PathUtils.checkInsideSafeArea;
 import static jsclub.codefest.sdk.algorithm.PathUtils.distance;
 
 public class Attack {
 
-    private static long lastShotTime = 0;       // Thời điểm bắn súng gần nhất
-    private static long lastThrowTime = 0;      // Thời điểm ném gần nhất
-    private static long lastSpecialTime = 0;    // Thời điểm sử dụng vũ khí đặc biệt gần nhất
-    private static long lastMeleeTime = 0;      // Thời điểm tấn công cận chiến gần nhất
-    private static final long STEP_TIME = 500;  // Thời gian 1 step game là 500ms
+    private static long lastShotStep = 0;       // Thời điểm bắn súng gần nhất
+    private static long lastThrowStep = 0;      // Thời điểm ném gần nhất
+    private static long lastSpecialStep = 0;    // Thời điểm sử dụng vũ khí đặc biệt gần nhất
+    private static long lastMeleeStep = 0;      // Thời điểm tấn công cận chiến gần nhất
+
+    static int currentDamage(Hero hero) {
+        Inventory inventory = hero.getInventory();
+        int dmg = 0;
+        if (inventory.getMelee() != null) dmg += inventory.getMelee().getDamage();
+        if (inventory.getGun() != null) dmg += inventory.getGun().getDamage();
+//        if (inventory.getThrowable() != null) dmg += inventory.getThrowable().getDamage();
+        if (inventory.getSpecial() != null) dmg += inventory.getSpecial().getDamage();
+        return dmg;
+    }
 
     static boolean isInsideRange(GameMap gameMap, Weapon weapon, Node from, Node to, String direction) {
+        if (weapon == null || from == null || to == null || direction == null) {
+            return false; // Kiểm tra các tham số hợp lệ
+        }
+
         int width, depth, halfWidth, halfDepth;
         int playerX = from.getX();
         int playerY = from.getY();
@@ -54,11 +67,32 @@ public class Attack {
             };
         } else {
             // Kiểm tra chướng ngại vật trên đường bắn
-            for (int y = playerY; y <= targetY; y++) {
-                for (int x = playerX; x <= targetX; x++) {
-                    Element obstacle = gameMap.getElementByIndex(x, y);
-                    if (obstacle instanceof Obstacle && !((Obstacle) obstacle).getTags().contains(ObstacleTag.CAN_SHOOT_THROUGH)) {
-                        return false; // Có chướng ngại vật trên đường bắn
+            if (direction.equals("r")) {
+                for (int x = playerX + 1; x < targetX; x++) {
+                    Element e = gameMap.getElementByIndex(x, playerY);
+                    if (e instanceof Obstacle && !((Obstacle) e).getTags().contains(ObstacleTag.CAN_SHOOT_THROUGH)) {
+                        return false;
+                    }
+                }
+            } else if (direction.equals("l")) {
+                for (int x = targetX + 1; x < playerX; x++) {
+                    Element e = gameMap.getElementByIndex(x, playerY);
+                    if (e instanceof Obstacle && !((Obstacle) e).getTags().contains(ObstacleTag.CAN_SHOOT_THROUGH)) {
+                        return false;
+                    }
+                }
+            } else if (direction.equals("u")) {
+                for (int y = playerY + 1; y < targetY; y++) {
+                    Element e = gameMap.getElementByIndex(playerX, y);
+                    if (e instanceof Obstacle && !((Obstacle) e).getTags().contains(ObstacleTag.CAN_SHOOT_THROUGH)) {
+                        return false;
+                    }
+                }
+            } else if (direction.equals("d")) {
+                for (int y = targetY + 1; y < playerY; y++) {
+                    Element e = gameMap.getElementByIndex(playerX, y);
+                    if (e instanceof Obstacle && !((Obstacle) e).getTags().contains(ObstacleTag.CAN_SHOOT_THROUGH)) {
+                        return false;
                     }
                 }
             }
@@ -149,41 +183,57 @@ public class Attack {
         boolean attacked = false;
 
         // Ném vật phẩm nếu trong tầm và hết cooldown
-        if (throwable != null && isInsideRange(gameMap, throwable, currentPosition, targetNode, direction)
-                && System.currentTimeMillis() - lastThrowTime >= throwable.getCooldown() * STEP_TIME) {
+        if (isInsideRange(gameMap, throwable, currentPosition, targetNode, direction)
+                && gameMap.getStepNumber() - lastThrowStep >= throwable.getCooldown()) {
             hero.throwItem(direction); // Ném lần 1
             System.out.println("Ném vật phẩm lần 1 về hướng " + direction);
-            lastThrowTime = System.currentTimeMillis();
+            lastThrowStep = gameMap.getStepNumber();
             attacked = true;
         }
 
         // Dùng vũ khí đặc biệt nếu trong tầm và hết cooldown
-        if (special != null && isInsideRange(gameMap, special, currentPosition, targetNode, direction)
-                && System.currentTimeMillis() - lastSpecialTime >= special.getCooldown() * STEP_TIME) {
+        if (isInsideRange(gameMap, special, currentPosition, targetNode, direction)
+                && gameMap.getStepNumber() - lastSpecialStep >= special.getCooldown()) {
             hero.useSpecial(direction); // Dùng lần 1
             System.out.println("Dùng vũ khí đặc biệt lần 1 về hướng " + direction);
-            lastSpecialTime = System.currentTimeMillis();
+            lastSpecialStep = gameMap.getStepNumber();
             attacked = true;
         }
 
         // Bắn súng nếu trong tầm và hết cooldown
-        if (gun != null && isInsideRange(gameMap, gun, currentPosition, targetNode, direction)
-                && System.currentTimeMillis() - lastShotTime >= gun.getCooldown() * STEP_TIME) {
+        if (isInsideRange(gameMap, gun, currentPosition, targetNode, direction)
+                && gameMap.getStepNumber() - lastShotStep >= gun.getCooldown()) {
             hero.shoot(direction); // Bắn lần 1
             System.out.println("Bắn súng lần 1 về hướng " + direction);
-            lastShotTime = System.currentTimeMillis();
+            lastShotStep = gameMap.getStepNumber();
             attacked = true;
         }
 
         // Tấn công cận chiến nếu trong tầm và hết cooldown
         if (isInsideRange(gameMap, melee, currentPosition, targetNode, direction)
-                && System.currentTimeMillis() - lastMeleeTime >= melee.getCooldown() * STEP_TIME) {
+                && gameMap.getStepNumber() - lastMeleeStep >= melee.getCooldown()) {
             hero.attack(direction); // Tấn công lần 1
             System.out.println("Tấn công cận chiến lần 1 vào mục tiêu ở hướng " + direction);
-            lastMeleeTime = System.currentTimeMillis();
+            lastMeleeStep = gameMap.getStepNumber();
             attacked = true;
         }
 
         return attacked; // Trả về true nếu tấn công thành công bằng 1 vũ khí
+    }
+
+     // Kiểm tra xem có player nào gần vị trí hiện tại không
+    static Player checkIfHasNearbyPlayer(GameMap gameMap) {
+        List<Player> players = gameMap.getOtherPlayerInfo();
+        if (players == null || players.isEmpty()) return null;
+
+        Node currentPosition = gameMap.getCurrentPlayer().getPosition();
+
+        for (Player player : players) {
+            if (player.getHealth() <= 0) continue; // Bỏ qua player đã chết
+            if (distance(currentPosition, player.getPosition()) <= 3) {
+                return player; // Trả về player gần nhất
+            }
+        }
+        return null; // Không có player nào gần
     }
 }

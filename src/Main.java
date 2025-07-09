@@ -17,7 +17,7 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "122829";
+    private static final String GAME_ID = "176421";
     private static final String PLAYER_NAME = "botable";
     private static final String SECRET_KEY = "sk-9tCiKF60Sxi0KVc1ZtiQdw:mGiTucg2md7pM_jn7C19ZKq_KTUJIhBlnOUYLE5mEgH42V86LMruay6aH7TnYe1m_MmCok6c3KiTWJS0IjkJBg";
 
@@ -28,6 +28,9 @@ public class Main {
 
     static int tickCount = 0;
     static int lootRadius = 2; // Bán kính loot đồ xung quanh player
+
+    private static Node retreatTarget = null;
+    private static int lastDensityCheck = 0;
 
     public static void main(String[] args) throws IOException {
         Hero hero = new Hero(GAME_ID, PLAYER_NAME, SECRET_KEY);
@@ -44,9 +47,58 @@ public class Main {
                 float currentHealth = gameMap.getCurrentPlayer().getHealth();
                 System.out.println("Current Health: " + currentHealth);
 
-                // Ưu tiên 1: tấn công locked target nếu có
+                // Phân tích area density định kỳ (mỗi 15 tick)
+                if (tickCount - lastDensityCheck >= 15) {
+                    analyzeAndUpdateStrategy(gameMap, currentHealth);
+                    lastDensityCheck = tickCount;
+                }
+
+                Health.useSpecialSupportItem(gameMap, hero);
+
+                // Ưu tiên 1: Nếu đang trong chế độ retreat
+                System.out.println("Retreat: " + (retreatTarget != null ? retreatTarget : "Không"));
+                if (retreatTarget != null) {
+                    if (executeRetreat(gameMap, hero)) {
+                        return; // Đã di chuyển, không làm gì khác
+                    }
+                }
+
+                // Nếu máu thấp và ở khu vực không đông người, ưu tiên sử dụng Unicorn Blood
+                if (currentHealth <= maxHealth * 0.25f && !MapManager.isCurrentAreaCrowded(gameMap, 1)
+                        && hero.getInventory().getListSupportItem().stream().anyMatch(item -> item.getId().equals("UNICORN_BLOOD"))) {
+                    try {
+                        hero.useItem("UNICORN_BLOOD");
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+
+                // Ưu tiên 2: mở trứng nếu có trứng bất kể vị trí
+                Obstacle targetEgg = ItemManager.hasEgg(gameMap);
+                if (targetEgg != null && (lockedTarget == null || lockedTarget.getHealth() <= maxHealth * 0.2f || lockedTarget.getHealth() < currentHealth - 20)) {
+                    System.out.println("Đã tìm thấy trứng: " + targetEgg.getId() + ", vị trí: " + targetEgg.getPosition());
+                    lastChestPosition = targetEgg.getPosition();
+                    lastChest = targetEgg;
+                    try {
+                        ItemManager.openChest(gameMap, hero, targetEgg);
+                    } catch (IOException e) {
+                        System.out.println("Lỗi khi phá trứng: " + e.getMessage());
+                    }
+                    return;
+                }
+
+                // Nếu vừa phá xong rương, còn item quanh rương thì nhặt
+                if (lastChestPosition != null) {
+                    lootRadius = 5;
+                    if (ItemManager.lootNearbyItems(hero, gameMap, lootRadius)) {
+                        return; // Ưu tiên nhặt item quanh rương, xong mới làm việc khác
+                    } else {
+                        lastChestPosition = null; // Không còn item quanh, reset
+                    }
+                }
+
+                // Ưu tiên 3: tấn công locked target
                 if (lockedTarget != null) {
-                    // Luôn tìm lại đối tượng player mới nhất theo id
                     Player current = null;
                     for (Player p : gameMap.getOtherPlayerInfo()) {
                         if (p.getId().equals(lockedTarget.getId())) {
@@ -62,10 +114,10 @@ public class Main {
                     }
                 }
 
-                // Ưu tiên 2: hồi máu nếu máu dưới 80%
+                // Ưu tiên 4: hồi máu nếu máu dưới 80%
                 if (currentHealth < maxHealth * 0.8f) {
-                    if (Health.healByAlly(gameMap, hero)) { // Ưu tiên hồi máu bằng ally
-                        return; // Nếu đã hồi máu thành công, không làm gì khác
+                    if (Health.healByAlly(gameMap, hero)) {
+                        return;
                     } else {
                         Element healingItem = Health.findBestHealingItem(hero.getInventory().getListSupportItem(), maxHealth - currentHealth);
                         if (healingItem != null) {
@@ -80,29 +132,15 @@ public class Main {
                     }
                 }
 
-                // Ưu tiên 3: mở trứng nếu có trứng bất kể vị trí
-                Obstacle targetEgg = ItemManager.hasEgg(gameMap);
-                if (targetEgg != null) {
-                    lastChestPosition = targetEgg.getPosition();
-                    lastChest = targetEgg;
-                    try {
-                        ItemManager.openChest(gameMap, hero, targetEgg);
-                    } catch (IOException e) {
-                        System.out.println("Lỗi khi phá trứng: " + e.getMessage());
-                    }
+                // Ưu tiên 5: nếu có kẻ địch ở gần và đủ khả năng tấn công thì tấn công
+                Player player = Attack.checkIfHasNearbyPlayer(gameMap);
+                if (player != null && player.getHealth() < currentHealth && Attack.currentDamage(hero) >= 15) {
+                    lockedTarget = player;
+                    movementSet(gameMap, hero, player, currentHealth);
                     return;
                 }
 
-                // Nếu vừa phá xong trứng, còn item quanh trứng thì nhặt
-                if (lastChestPosition != null) {
-                    if (ItemManager.lootNearbyItems(hero, gameMap, lootRadius)) {
-                        return; // Ưu tiên nhặt item quanh rương, xong mới làm việc khác
-                    } else {
-                        lastChestPosition = null; // Không còn item quanh, reset
-                    }
-                }
-
-                // Ưu tiên 4: mở rương nếu có rương trong phạm vi
+                // Ưu tiên 6: mở rương nếu có rương trong phạm vi
                 Obstacle targetChest = ItemManager.checkIfHasChest(gameMap);
                 if (targetChest != null) {
                     lastChestPosition = new Node(targetChest.getX(), targetChest.getY());
@@ -112,7 +150,7 @@ public class Main {
                     } catch (IOException e) {
                         System.out.println("Lỗi khi mo ruong: " + e.getMessage());
                     }
-                    return; // QUAN TRỌNG: return luôn để không làm gì khác tick này!
+                    return;
                 }
 
                 // Nếu vừa phá xong rương, còn item quanh rương thì nhặt
@@ -125,24 +163,23 @@ public class Main {
                     }
                 }
 
-                // Ưu tiên 5: loot item tốt hơn xung quanh nếu có
-                lootRadius = 2;
+                // Ưu tiên 7: loot item tốt hơn xung quanh nếu có
+                lootRadius = 3;
                 if (ItemManager.lootNearbyItems(hero, gameMap, lootRadius)) {
                     return;
                 }
 
-                // Ưu tiên 6: nhặt vũ khí nếu không có vũ khí nào
-                if (hero.getInventory().getGun() == null && hero.getInventory().getMelee().getId().equals("HAND")
-                        && hero.getInventory().getThrowable() == null && hero.getInventory().getSpecial() == null) {
+                // Ưu tiên 8: nếu chỉ số tấn công bé hơn 40, tiếp tục nhặt vũ khí
+                if (Attack.currentDamage(hero) < 40) {
                     try {
-                        pickUpNearestWeapon(hero, gameMap);
+                        ItemManager.pickUpNearestWeapon(hero, gameMap);
                     } catch (IOException | InterruptedException e) {
                         System.out.println("Lỗi khi nhặt vũ khí: " + e.getMessage());
                     }
                     return;
                 }
 
-                // Ưu tiên 7: tấn công người chơi yếu nhất hoặc gần nhất
+                // Ưu tiên 9: tấn công người chơi yếu nhất hoặc gần nhất
                 Player weakest = Attack.findWeakestPlayer(gameMap);
                 if (weakest != null) {
                     lockedTarget = weakest;
@@ -159,7 +196,7 @@ public class Main {
                 // Nếu không tìm thấy mục tiêu, reset lockedTarget
                 lockedTarget = null;
 
-                // 6. (Có thể bổ sung: khám phá map hoặc nhặt vũ khí/support item tốt hơn nếu muốn)
+                // (Có thể bổ sung: khám phá map hoặc nhặt vũ khí/support item tốt hơn nếu muốn)
             }
         };
 
@@ -168,6 +205,7 @@ public class Main {
     }
 
     public static void movementSet(GameMap gameMap, Hero hero, Player target, float currentHealth) {
+
         try {
             boolean attacked = Attack.attackTarget(hero, target, gameMap);
             if (attacked) {
@@ -181,8 +219,15 @@ public class Main {
                 return; // Nếu đã sử dụng vật phẩm hồi máu, không cần làm gì khác
             }
 
-            moveToTarget(hero, target, gameMap);
+            // Nếu nằm trong tầm của throwable thì không tiếp tục di chuyển
+            Node currentPos = hero.getGameMap().getCurrentPlayer().getPosition();
+            Node targetPos = target.getPosition();
+            String dir = getDirection(currentPos, targetPos);
+            if (Attack.isInsideRange(gameMap, hero.getInventory().getThrowable(), targetPos, currentPos, dir)) {
+                return;
+            }
 
+            moveToTarget(hero, target, gameMap);
         } catch (IOException | InterruptedException e) {
             System.out.println("Lỗi khi tấn công target (người gần nhất): " + e.getMessage());
         }
@@ -190,19 +235,16 @@ public class Main {
 
     public static List<Node> getRestrictedNodes(GameMap gameMap) {
         List<Node> restrictedNodes = new ArrayList<>();
-        int enemyRange = 2; // 3x3 vùng quanh enemy
-        int futureTickCount = 1; // Số tick dự đoán (có thể tăng lên 3 nếu muốn an toàn hơn)
+        int enemyRange = 2;
+        int futureTickCount = 1;
 
-
+        // Logic cũ cho enemy và obstacles (giữ nguyên)
         for (Enemy enemy : gameMap.getListEnemies()) {
             if (enemy.getPosition() == null) continue;
-
 
             Node spawnPos = EnemyTrajectoryCollector.enemySpawnPos.get(enemy);
             if (spawnPos == null) spawnPos = enemy.getPosition();
 
-
-            // Nếu collector đã sẵn sàng: tránh các ô enemy sẽ đứng ở tick tiếp theo
             if (EnemyTrajectoryCollector.isReady()) {
                 EnemyTrajectoryCollector.TrajectoryInfo info = EnemyTrajectoryCollector.getTrajectory(enemy.getId(), spawnPos);
                 if (info != null) {
@@ -216,8 +258,7 @@ public class Main {
                     }
                 }
             } else {
-                // Nếu chưa đủ dữ liệu trajectory, tránh xa hơn vùng hiện tại!
-                int cautiousRange = 2; // 5x5 vùng
+                int cautiousRange = 2;
                 Node dangerPos = enemy.getPosition();
                 for (int dx = -cautiousRange; dx <= cautiousRange; dx++) {
                     for (int dy = -cautiousRange; dy <= cautiousRange; dy++) {
@@ -244,7 +285,6 @@ public class Main {
         return restrictedNodes;
     }
 
-
     // Hàm xác định hướng (direction) từ node hiện tại đến node mục tiêu
     public static String getDirection(Node from, Node to) {
         int dx = to.getX() - from.getX();
@@ -260,51 +300,6 @@ public class Main {
             return dy > 0 ? "u" : "d";
         }
         return "d"; // fallback
-    }
-
-    public static void pickUpNearestWeapon(Hero hero, GameMap gameMap) throws IOException, InterruptedException {
-        List<Weapon> weapons = gameMap.getListWeapons();
-        if (weapons == null || weapons.isEmpty()) {
-            System.out.println("Không tìm thấy vũ khí trên bản đồ!");
-            return;
-        }
-
-        Node currentPosition = gameMap.getCurrentPlayer().getPosition();
-
-        Weapon nearestWeapon = null;
-        int minDistance = Integer.MAX_VALUE;
-        Node nearestNode = null;
-
-        int safeZone = gameMap.getSafeZone();
-        int mapSize = gameMap.getMapSize();
-
-        for (Weapon weapon : weapons) {
-            if (ItemManager.pickupable(hero, weapon)) {
-                Node weaponNode = weapon.getPosition();
-                if (!checkInsideSafeArea(weaponNode, safeZone, mapSize)) continue;
-                int dist = distance(currentPosition, weaponNode);
-                if (dist < minDistance) {
-                    minDistance = dist;
-                    nearestWeapon = weapon;
-                    nearestNode = weaponNode;
-                }
-            }
-        }
-
-        if (nearestWeapon == null) {
-            System.out.println("Không tìm thấy vũ khí hợp lệ trong vùng an toàn!");
-            return;
-        }
-
-        if (distance(currentPosition, nearestNode) > 1) {
-            // Nếu không đứng trên vũ khí, di chuyển đến vị trí vũ khí
-            System.out.println("Đang di chuyển đến vũ khí gần nhất: " + nearestWeapon.getId() + " tại " + nearestNode);
-            moveToTarget(hero, nearestNode, gameMap);
-        } else {
-            // Nếu đã đứng trên vị trí vũ khí thì nhặt luôn, không di chuyển
-            ItemManager.swapItem(gameMap, hero);
-            System.out.println("Đang đứng trên vũ khí, thực hiện nhặt.");
-        }
     }
 
     // Di chuyển đến mục tiêu
@@ -335,6 +330,7 @@ public class Main {
             return;
         }
 
+        // Kiểm tra bước di chuyển có nằm trong vùng an toàn không
         String step = path.substring(0, 1);
         Node positionAfterStep;
 
@@ -355,7 +351,7 @@ public class Main {
                 System.out.println("Hướng di chuyển không hợp lệ: " + step);
                 return;
         }
-        // Kiểm tra bước di chuyển có nằm trong vùng an toàn không
+
         if (!checkInsideSafeArea(positionAfterStep, safeZone, mapSize)) {
             System.out.println("Không thể di chuyển ra ngoài vùng an toàn: " + positionAfterStep);
 
@@ -374,6 +370,51 @@ public class Main {
         }
 
         hero.move(step);
-        System.out.println("Di chuyển 1 bước về hướng " + step + " để tiếp cận mục tiêu.");
+        System.out.println("Di chuyển 1 bước về hướng " + step + " để tiếp cận mục tiêu: " + gameMap.getElementByIndex(targetNode.x, targetNode.y).getId());
+    }
+
+    // Hàm phân tích và cập nhật chiến thuật
+    private static void analyzeAndUpdateStrategy(GameMap gameMap, float currentHealth) {
+
+        boolean isCurrentAreaCrowded = MapManager.isCurrentAreaCrowded(gameMap, 1);
+
+        // Quyết định có nên retreat không
+        if (currentHealth < maxHealth * 0.25f && isCurrentAreaCrowded && (lockedTarget == null || lockedTarget.getHealth() > currentHealth)) {
+            retreatTarget = MapManager.findSafestNearbyArea(gameMap);
+            System.out.println("Chế độ RETREAT: Máu ít + khu vực đông người");
+        }
+        // Chế độ bình thường
+        else {
+            retreatTarget = null;
+        }
+    }
+
+    // Thực hiện retreat
+    private static boolean executeRetreat(GameMap gameMap, Hero hero) {
+        if (retreatTarget == null) return false;
+
+        Node currentPos = gameMap.getCurrentPlayer().getPosition();
+        if (distance(currentPos, retreatTarget) < 5) {
+            System.out.println("Đã tới khu vực an toàn, thoát chế độ retreat");
+            retreatTarget = null;
+            return false;
+        }
+
+        // Tìm đường đi tới retreat target
+        List<Node> restrictedNodes = getRestrictedNodes(gameMap); // true = avoid crowded areas
+        String path = getShortestPath(gameMap, restrictedNodes, currentPos, retreatTarget, true);
+
+        if (path != null && path.length() > 1) {
+            String step = path.substring(0, 1);
+            try {
+                hero.move(step);
+                System.out.println("Retreat move: " + step);
+                return true;
+            } catch (Exception e) {
+                System.out.println("Lỗi khi retreat: " + e.getMessage());
+            }
+        }
+
+        return false;
     }
 }

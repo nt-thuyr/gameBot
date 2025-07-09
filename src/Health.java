@@ -1,23 +1,28 @@
 import jsclub.codefest.sdk.Hero;
 import jsclub.codefest.sdk.model.GameMap;
+import jsclub.codefest.sdk.model.Inventory;
 import jsclub.codefest.sdk.model.npcs.Ally;
 import jsclub.codefest.sdk.base.Node;
 import jsclub.codefest.sdk.model.players.Player;
 import jsclub.codefest.sdk.model.support_items.SupportItem;
 
 
+import java.io.IOException;
 import java.util.List;
 
 import static jsclub.codefest.sdk.algorithm.PathUtils.distance;
 import static jsclub.codefest.sdk.algorithm.PathUtils.getShortestPath;
 
 public class Health {
+
+    private static long lastUsedCompass = 0; // Biến để lưu thời gian sử dụng la bàn
+
     static Node checkIfHasNearbyAlly(GameMap gameMap) {
         Node currentPosition = gameMap.getCurrentPlayer().getPosition();
         List<Ally> allies = gameMap.getListAllies();
 
         for (Ally ally : allies) {
-            if (distance(currentPosition, ally.getPosition()) <= 4 && ally.getCooldownStepLeft() <= 1) {
+            if (distance(currentPosition, ally.getPosition()) <= 8 && ally.getCooldownStepLeft() <= 1) {
                 return new Node(ally.getX(), ally.getX());
             }
         }
@@ -85,5 +90,55 @@ public class Health {
             }
         }
         return bestItem;
+    }
+
+    static void useSpecialSupportItem(GameMap gameMap, Hero hero) {
+        List<SupportItem> supportItemInv = hero.getInventory().getListSupportItem();
+        Player currentPlayer = gameMap.getCurrentPlayer();
+        float currentHealth = currentPlayer.getHealth();
+
+        // Nếu có Elixir thì dùng luôn
+        // Hiệu ứng: miễn khống chế
+        if (supportItemInv.stream().anyMatch(item -> item.getId().equals("ELIXIR"))) {
+            try {
+                hero.useItem("ELIXIR");
+            } catch (IOException e) {
+                System.out.println("Lỗi khi sử dụng ELIXIR: " + e.getMessage());
+            }
+        }
+
+        // Nếu có Magic, không có locked target hoặc locked target khỏe hơn
+        // Sau khi sử dụng thì xóa locked target hiện tại
+        // Hiệu ứng: tàng hình
+        if (supportItemInv.stream().anyMatch(item -> item.getId().equals("MAGIC")) &&
+                (Main.lockedTarget == null || Main.lockedTarget.getHealth() > currentHealth)) {
+            try {
+                hero.useItem("MAGIC");
+                Main.lockedTarget = null;
+            } catch (IOException e) {
+                System.out.println("Lỗi khi sử dụng MAGIC: " + e.getMessage());
+            }
+        }
+
+        // Nếu có Compass, khu vực hiện tại có nhiều hơn 2 người, không có locked target hoặc locked target khỏe hơn mình, lần cuối sử dụng là 10 step trước
+        // Sau khi sử dụng thì target đến player gần nhất
+        // Hiệu ứng: đảo ngược hành động của player trong 9*9
+        if (supportItemInv.stream().anyMatch(item -> item.getId().equals("COMPASS"))) {
+            if (MapManager.isCurrentAreaCrowded(gameMap, 2) &&
+                    currentHealth >= Main.maxHealth &&
+                    (Main.lockedTarget == null || Main.lockedTarget.getHealth() > currentHealth)) {
+                if (gameMap.getStepNumber() > lastUsedCompass + 10) {
+                    try {
+                        hero.useItem("COMPASS");
+                        lastUsedCompass = gameMap.getStepNumber();
+                        Main.lockedTarget = Attack.findNearestPlayer(gameMap, currentPlayer.getPosition());
+                    } catch (IOException e) {
+                        System.out.println("Lỗi khi sử dụng COMPASS: " + e.getMessage());
+                    }
+                } else {
+                    System.out.println("Đã sử dụng COMPASS gần đây, không sử dụng lại ngay.");
+                }
+            }
+        }
     }
 }
