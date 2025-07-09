@@ -63,7 +63,11 @@ public class Main {
                 if (targetEgg != null && distance(gameMap.getCurrentPlayer().getPosition(), targetEgg.getPosition()) <= 5) {
                     lastChestPosition = new Node(targetEgg.getX(), targetEgg.getY());
                     lastChest = targetEgg;
-                    ItemManager.openEgg(gameMap, hero, targetEgg);
+                    try {
+                        ItemManager.openChest(gameMap, hero, targetEgg);
+                    } catch (IOException e) {
+                        System.out.println("Lỗi khi phá trứng: " + e.getMessage());
+                    }
                     return;
                 }
 

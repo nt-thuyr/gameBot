@@ -295,17 +295,4 @@ public class ItemManager {
         }
         return null; // Không có quả trứng nào
     }
-
-
-    public static void openEgg(GameMap gameMap, Hero hero, Obstacle targetEgg) {
-        Node eggPosition = targetEgg.getPosition();
-        Player currentPlayer = gameMap.getCurrentPlayer();
-        Node currentPosition = currentPlayer.getPosition();
-        try {
-            openChest(gameMap, hero, targetEgg);
-        } catch (IOException e) {
-            System.out.println("Lỗi khi mở trứng: " + e.getMessage());
-        }
-    }
-
 }
