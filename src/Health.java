@@ -122,7 +122,7 @@ public class Health {
 
         // Nếu có Compass, khu vực hiện tại có nhiều hơn 2 người, không có locked target hoặc locked target khỏe hơn mình, lần cuối sử dụng là 10 step trước
         // Sau khi sử dụng thì target đến player gần nhất
-        // Hiệu ứng: đảo ngược hành động của player trong 9*9
+        // Hiệu ứng: làm choáng player trong 9*9
         if (supportItemInv.stream().anyMatch(item -> item.getId().equals("COMPASS"))) {
             if (MapManager.isCurrentAreaCrowded(gameMap, 2) &&
                     currentHealth >= Main.maxHealth &&
