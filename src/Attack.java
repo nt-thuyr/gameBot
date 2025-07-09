@@ -153,13 +153,6 @@ public class Attack {
                 && System.currentTimeMillis() - lastThrowTime >= throwable.getCooldown() * STEP_TIME) {
             hero.throwItem(direction); // Ném lần 1
             System.out.println("Ném vật phẩm lần 1 về hướng " + direction);
-            // Thử ném lần 2 để kiểm tra trick
-            try {
-                hero.throwItem(direction);
-                System.out.println("Thử ném vật phẩm lần 2 ngay lập tức về hướng " + direction);
-            } catch (IOException e) {
-                System.out.println("Lỗi khi thử ném vật phẩm lần 2: " + e.getMessage());
-            }
             lastThrowTime = System.currentTimeMillis();
             attacked = true;
         }
@@ -169,13 +162,6 @@ public class Attack {
                 && System.currentTimeMillis() - lastSpecialTime >= special.getCooldown() * STEP_TIME) {
             hero.useSpecial(direction); // Dùng lần 1
             System.out.println("Dùng vũ khí đặc biệt lần 1 về hướng " + direction);
-            // Thử dùng lần 2 để kiểm tra trick
-            try {
-                hero.useSpecial(direction);
-                System.out.println("Thử dùng vũ khí đặc biệt lần 2 ngay lập tức về hướng " + direction);
-            } catch (IOException e) {
-                System.out.println("Lỗi khi thử dùng vũ khí đặc biệt lần 2: " + e.getMessage());
-            }
             lastSpecialTime = System.currentTimeMillis();
             attacked = true;
         }
@@ -185,13 +171,6 @@ public class Attack {
                 && System.currentTimeMillis() - lastShotTime >= gun.getCooldown() * STEP_TIME) {
             hero.shoot(direction); // Bắn lần 1
             System.out.println("Bắn súng lần 1 về hướng " + direction);
-            // Thử bắn lần 2 để kiểm tra trick bỏ qua cooldown
-            try {
-                hero.shoot(direction);
-                System.out.println("Thử bắn súng lần 2 ngay lập tức về hướng " + direction);
-            } catch (IOException e) {
-                System.out.println("Lỗi khi thử bắn súng lần 2: " + e.getMessage());
-            }
             lastShotTime = System.currentTimeMillis();
             attacked = true;
         }
@@ -201,13 +180,6 @@ public class Attack {
                 && System.currentTimeMillis() - lastMeleeTime >= melee.getCooldown() * STEP_TIME) {
             hero.attack(direction); // Tấn công lần 1
             System.out.println("Tấn công cận chiến lần 1 vào mục tiêu ở hướng " + direction);
-            // Thử tấn công lần 2 để kiểm tra trick
-            try {
-                hero.attack(direction);
-                System.out.println("Thử tấn công cận chiến lần 2 ngay lập tức ở hướng " + direction);
-            } catch (IOException e) {
-                System.out.println("Lỗi khi thử tấn công cận chiến lần 2: " + e.getMessage());
-            }
             lastMeleeTime = System.currentTimeMillis();
             attacked = true;
         }
