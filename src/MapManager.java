@@ -1,9 +1,11 @@
+import jsclub.codefest.sdk.Hero;
 import jsclub.codefest.sdk.base.Node;
 import jsclub.codefest.sdk.model.GameMap;
 import jsclub.codefest.sdk.model.npcs.Enemy;
 import jsclub.codefest.sdk.model.obstacles.Obstacle;
 import jsclub.codefest.sdk.model.players.Player;
 
+import java.io.IOException;
 import java.util.*;
 
 import static jsclub.codefest.sdk.algorithm.PathUtils.distance;
@@ -246,4 +248,50 @@ public class MapManager {
         return Math.min(danger, 1.0);
     }
 
+     static void moveToSafePoint(Hero hero, GameMap gameMap) throws IOException, InterruptedException {
+        int safeZone = gameMap.getSafeZone();
+        int mapSize = gameMap.getMapSize();
+        Node currentPosition = gameMap.getCurrentPlayer().getPosition();
+        List<Node> restrictedNodes = Main.getRestrictedNodes(gameMap);
+
+        // Tìm điểm trung tâm map (ưu tiên vào giữa bo)
+        int center = mapSize / 2;
+
+        // Tìm tất cả các node nằm trong bo, không bị restricted, sắp xếp theo khoảng cách tới center tăng dần
+        List<Node> candidates = new ArrayList<>();
+        for (int x = safeZone; x < mapSize - safeZone; x++) {
+            for (int y = safeZone; y < mapSize - safeZone; y++) {
+                Node n = new Node(x, y);
+                if (!restrictedNodes.contains(n)) {
+                    candidates.add(n);
+                }
+            }
+        }
+
+        // Sắp xếp theo khoảng cách tới center tăng dần
+        candidates.sort(Comparator.comparingInt(n -> Math.abs(n.getX() - center) + Math.abs(n.getY() - center)));
+
+        // Chọn candidate gần nhất center và gần current nhất
+        Node best = null;
+        int minDist = Integer.MAX_VALUE;
+        for (Node c : candidates) {
+            int d = distance(currentPosition, c);
+            if (d < minDist) {
+                minDist = d;
+                best = c;
+            }
+            // Nếu ở ngay trên node an toàn thì break luôn
+            if (d == 0) {
+                best = c;
+                break;
+            }
+        }
+
+        if (best != null) {
+            System.out.println("Đang ở ngoài bo, di chuyển đến điểm an toàn gần trung tâm: " + best);
+            Main.moveToTarget(hero, best, gameMap);
+        } else {
+            System.out.println("Không tìm thấy điểm an toàn nào phù hợp trong bo!");
+        }
+    }
 }

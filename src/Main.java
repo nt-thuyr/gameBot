@@ -18,7 +18,7 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "107808";
+    private static final String GAME_ID = "118391";
     private static final String PLAYER_NAME = "botable";
     private static final String SECRET_KEY = "sk-9tCiKF60Sxi0KVc1ZtiQdw:mGiTucg2md7pM_jn7C19ZKq_KTUJIhBlnOUYLE5mEgH42V86LMruay6aH7TnYe1m_MmCok6c3KiTWJS0IjkJBg";
 
@@ -49,6 +49,19 @@ public class Main {
                 float currentHealth = gameMap.getCurrentPlayer().getHealth();
                 System.out.println("========== Step: " + gameMap.getStepNumber() + " ==========");
 
+                // Kiểm tra xem có đang ở ngoài vùng an toàn không
+                Node currentPosition = gameMap.getCurrentPlayer().getPosition();
+                int safeZone = gameMap.getSafeZone();
+                int mapSize = gameMap.getMapSize();
+                if (!checkInsideSafeArea(currentPosition, safeZone, mapSize)) {
+                    try {
+                        MapManager.moveToSafePoint(hero, gameMap);
+                        return;
+                    } catch (IOException | InterruptedException e) {
+                        System.out.println("Lỗi khi di chuyển vào vùng an toàn: " + e.getMessage());
+                    }
+                }
+
                 // Phân tích area density định kỳ (mỗi 15 tick)
                 if (gameMap.getStepNumber() - lastDensityCheck >= 15) {
                     analyzeAndUpdateStrategy(gameMap, currentHealth);
@@ -73,8 +86,7 @@ public class Main {
 
                 // Ưu tiên 3: Nếu máu thấp và ở khu vực không đông người, ưu tiên sử dụng Unicorn Blood
 //                System.out.println("=== CHECKING PRIORITY 3: UNICORN BLOOD ===");
-                if (currentHealth <= maxHealth * 0.25f && !MapManager.isCurrentAreaCrowded(gameMap, 1)
-                        && hero.getInventory().getListSupportItem().stream().anyMatch(item -> item.getId().equals("UNICORN_BLOOD"))) {
+                if (currentHealth <= maxHealth * 0.25f && hero.getInventory().getListSupportItem().stream().anyMatch(item -> item.getId().equals("UNICORN_BLOOD"))) {
                     try {
                         hero.useItem("UNICORN_BLOOD");
                         return;
@@ -110,9 +122,7 @@ public class Main {
 
                 // Ưu tiên 5: tấn công locked target
 //                System.out.println("=== CHECKING PRIORITY 5: LOCKED TARGET ===");
-                if (lockedTarget != null && (Attack.isCombatReady(hero) ||
-                        (lockedTarget.getHealth() <= currentHealth && Attack.currentDamage(hero) >= 15 &&
-                                distance(lockedTarget.getPosition(), hero.getGameMap().getCurrentPlayer().getPosition()) <= 5))) {
+                if (lockedTarget != null) {
                     Player current = null;
                     for (Player p : gameMap.getOtherPlayerInfo()) {
                         if (p.getId().equals(lockedTarget.getId())) {
@@ -152,7 +162,7 @@ public class Main {
                 // Ưu tiên 7: nếu có kẻ địch ở gần và đủ khả năng tấn công thì tấn công
 //                System.out.println("=== CHECKING PRIORITY 7: PLAYER NEARBY ===");
                 Player player = Attack.checkIfHasNearbyPlayer(gameMap);
-                if (player != null && player.getHealth() <= currentHealth && Attack.currentDamage(hero) >= 15) {
+                if (player != null) {
                     lockedTarget = player;
                     movementSet(gameMap, hero, player, currentHealth);
                     return;
@@ -242,16 +252,20 @@ public class Main {
             }
 
             // Nếu nằm trong tầm của throwable hoặc không có vũ khí cận chiến thì không tiếp tục di chuyển
-            Node currentPos = hero.getGameMap().getCurrentPlayer().getPosition();
-            Node targetPos = target.getPosition();
-            String dir = getDirection(currentPos, targetPos);
-            if (Attack.isInsideRange(gameMap, hero.getInventory().getThrowable(), targetPos, currentPos, dir)) {
-                return;
-            } else {
-                System.out.println("Mục tiêu không trong tầm throwable, tiếp tục di chuyển.");
-            }
+        Node currentPos = hero.getGameMap().getCurrentPlayer().getPosition();
+        Node targetPos = target.getPosition();
+        if (currentPos == null || targetPos == null) {
+            System.out.println("currentPos or targetPos is null, cannot proceed.");
+            return;
+        }
+        String dir = getDirection(currentPos, targetPos);
+        if (Attack.isInsideRange(gameMap, hero.getInventory().getThrowable(), targetPos, currentPos, dir)) {
+            return;
+        } else {
+            System.out.println("Mục tiêu không trong tầm throwable, tiếp tục di chuyển.");
+        }
 
-            moveToTarget(hero, target, gameMap);
+        moveToTarget(hero, target, gameMap);
         } catch (IOException | InterruptedException e) {
             System.out.println("Lỗi khi tấn công target (người gần nhất): " + e.getMessage());
         }
