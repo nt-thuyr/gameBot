@@ -18,7 +18,7 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "145912";
+    private static final String GAME_ID = "107808";
     private static final String PLAYER_NAME = "botable";
     private static final String SECRET_KEY = "sk-9tCiKF60Sxi0KVc1ZtiQdw:mGiTucg2md7pM_jn7C19ZKq_KTUJIhBlnOUYLE5mEgH42V86LMruay6aH7TnYe1m_MmCok6c3KiTWJS0IjkJBg";
 
@@ -68,13 +68,8 @@ public class Main {
                     }
                 }
 
-//                // Thêm sau dòng kiểm tra retreat
                 System.out.println("Số người chơi khác: " + gameMap.getOtherPlayerInfo().size());
                 System.out.println("Locked target: " + (lockedTarget != null ? lockedTarget.getId() + " (HP: " + lockedTarget.getHealth() + ")" : "null"));
-//                Player weakest = Attack.findWeakestPlayer(gameMap);
-//                Player nearest = Attack.findNearestPlayer(gameMap, gameMap.getCurrentPlayer().getPosition());
-//                System.out.println("Người yếu nhất: " + (weakest != null ? weakest.getId() + " (HP: " + weakest.getHealth() + ")" : "null"));
-//                System.out.println("Người gần nhất: " + (nearest != null ? nearest.getId() + " (HP: " + nearest.getHealth() + ")" : "null"));
 
                 // Ưu tiên 3: Nếu máu thấp và ở khu vực không đông người, ưu tiên sử dụng Unicorn Blood
 //                System.out.println("=== CHECKING PRIORITY 3: UNICORN BLOOD ===");
@@ -115,7 +110,9 @@ public class Main {
 
                 // Ưu tiên 5: tấn công locked target
 //                System.out.println("=== CHECKING PRIORITY 5: LOCKED TARGET ===");
-                if (lockedTarget != null && (lockedTarget.getHealth() < currentHealth || Attack.currentDamage(hero) >= 40)) {
+                if (lockedTarget != null && (Attack.isCombatReady(hero) ||
+                        (lockedTarget.getHealth() <= currentHealth && Attack.currentDamage(hero) >= 15 &&
+                                distance(lockedTarget.getPosition(), hero.getGameMap().getCurrentPlayer().getPosition()) <= 5))) {
                     Player current = null;
                     for (Player p : gameMap.getOtherPlayerInfo()) {
                         if (p.getId().equals(lockedTarget.getId())) {
@@ -131,6 +128,7 @@ public class Main {
                         return;
                     }
                 }
+
 
                 // Ưu tiên 6: hồi máu nếu máu dưới 80%
 //                System.out.println("=== CHECKING PRIORITY 6: HEAL ===");
@@ -175,7 +173,7 @@ public class Main {
                 }
 
                 // Ưu tiên 9: loot item tốt hơn xung quanh nếu có
-                System.out.println("=== CHECKING PRIORITY 9: LOOT NEARBY ITEMS ===");
+//                System.out.println("=== CHECKING PRIORITY 9: LOOT NEARBY ITEMS ===");
                 lootRadius = 3;
                 if (ItemManager.lootNearbyItems(hero, gameMap, lootRadius)) {
                     return;
@@ -183,7 +181,7 @@ public class Main {
 
                 // Ưu tiên 10: nếu chỉ số tấn công bé hơn 40, tiếp tục nhặt vũ khí
 //                System.out.println("=== CHECKING PRIORITY 10: FIND WEAPON ===");
-                if (Attack.currentDamage(hero) < 40) {
+                if (!Attack.isCombatReady(hero)) {
                     try {
                         if (!ItemManager.pickUpNearestWeapon(hero, gameMap)) {
                             targetChest = ItemManager.checkIfHasChest(gameMap, 15);
@@ -262,7 +260,7 @@ public class Main {
     public static List<Node> getRestrictedNodes(GameMap gameMap) {
         List<Node> restrictedNodes = new ArrayList<>();
         int enemyRange = 2;
-        int futureTickCount = 1;
+        int futureTickCount = 3;
 
         // Logic cũ cho enemy và obstacles (giữ nguyên)
         for (Enemy enemy : gameMap.getListEnemies()) {
@@ -350,70 +348,91 @@ public class Main {
             path = getShortestPath(gameMap, restrictedNodes, currentPosition, targetNode, true);
         }
 
-        if (path == null || path.isEmpty()) {
-            System.out.println("Không tìm thấy đường đi đến mục tiêu!");
-            if (PathUtils.checkInsideSafeArea(targetNode, safeZone, mapSize) && lastPath != null && !lastPath.isEmpty()) {
-                // Lấy bước tiếp theo từ lastPath
-                String nextStep = lastPath.substring(0, 1);
-                Node nextPos = null;
-                switch (nextStep) {
-                    case "u": nextPos = new Node(currentPosition.getX(), currentPosition.getY() + 1); break;
-                    case "d": nextPos = new Node(currentPosition.getX(), currentPosition.getY() - 1); break;
-                    case "l": nextPos = new Node(currentPosition.getX() - 1, currentPosition.getY()); break;
-                    case "r": nextPos = new Node(currentPosition.getX() + 1, currentPosition.getY()); break;
-                }
-                // Kiểm tra xem nextPos có nằm trong restrictedNodes không
-                if (nextPos != null && !restrictedNodes.contains(nextPos)) {
-                    path = lastPath;
-                } else {
-                    Main.lockedTarget = null;
-                }
-            } else {
-                Main.lockedTarget = null;
-            }
-        } else {
-            lastPath = path;
-        }
+         if (path == null || path.isEmpty()) {
+             System.out.println("Không tìm thấy đường đi đến mục tiêu!");
+             if (PathUtils.checkInsideSafeArea(targetNode, safeZone, mapSize) && lastPath != null && !lastPath.isEmpty()) {
+                 // Lấy bước tiếp theo từ lastPath
+                 String nextStep = lastPath.substring(0, 1);
+                 Node nextPos = null;
+                 switch (nextStep) {
+                     case "u":
+                         nextPos = new Node(currentPosition.getX(), currentPosition.getY() + 1);
+                         break;
+                     case "d":
+                         nextPos = new Node(currentPosition.getX(), currentPosition.getY() - 1);
+                         break;
+                     case "l":
+                         nextPos = new Node(currentPosition.getX() - 1, currentPosition.getY());
+                         break;
+                     case "r":
+                         nextPos = new Node(currentPosition.getX() + 1, currentPosition.getY());
+                         break;
+                 }
+                 // Kiểm tra xem nextPos có nằm trong restrictedNodes không
+                 if (nextPos != null && !restrictedNodes.contains(nextPos)) {
+                     path = lastPath;
+                 } else {
+                     Main.lockedTarget = null;
+                     path = null;
+                 }
+             } else {
+                 Main.lockedTarget = null;
+                 path = null;
+             }
+         } else {
+             lastPath = path;
+         }
 
-        // Kiểm tra bước di chuyển có nằm trong vùng an toàn không
-        String step = path.substring(0, 1);
-        Node positionAfterStep;
+         if (path == null || path.isEmpty()) {
+             System.out.println("Không có đường đi hợp lệ, dừng di chuyển.");
+             return;
+         }
 
-        switch (step) {
-            case "u":
-                positionAfterStep = new Node(currentPosition.getX(), currentPosition.getY() + 1);
-                break;
-            case "d":
-                positionAfterStep = new Node(currentPosition.getX(), currentPosition.getY() - 1);
-                break;
-            case "l":
-                positionAfterStep = new Node(currentPosition.getX() - 1, currentPosition.getY());
-                break;
-            case "r":
-                positionAfterStep = new Node(currentPosition.getX() + 1, currentPosition.getY());
-                break;
-            default:
-                System.out.println("Hướng di chuyển không hợp lệ: " + step);
-                return;
-        }
+         // Check if the move is within the safe zone
+         String step = path.substring(0, 1);
+                Node positionAfterStep;
+                switch (step) {
+                    case "u":
+                        positionAfterStep = new Node(currentPosition.getX(), currentPosition.getY() + 1);
+                        break;
+                    case "d":
+                        positionAfterStep = new Node(currentPosition.getX(), currentPosition.getY() - 1);
+                        break;
+                    case "l":
+                        positionAfterStep = new Node(currentPosition.getX() - 1, currentPosition.getY());
+                        break;
+                    case "r":
+                        positionAfterStep = new Node(currentPosition.getX() + 1, currentPosition.getY());
+                        break;
+                    default:
+                        System.out.println("Invalid move direction: " + step);
+                        return;
+                }
 
         if (!checkInsideSafeArea(positionAfterStep, safeZone, mapSize)) {
-            System.out.println("Không thể di chuyển ra ngoài vùng an toàn: " + positionAfterStep);
+            System.out.println("Cannot move outside safe zone: " + positionAfterStep);
 
-            Weapon gun = hero.getInventory().getGun();
-            Weapon melee = hero.getInventory().getMelee();
-            Weapon throwable = hero.getInventory().getThrowable();
+            Element targetElement = gameMap.getElementByIndex(targetNode.x, targetNode.y);
+            if (lockedTarget != null && lockedTarget.equals(targetElement)) {
+                Weapon gun = hero.getInventory().getGun();
+                Weapon melee = hero.getInventory().getMelee();
+                Weapon throwable = hero.getInventory().getThrowable();
 
-            if (((gun == null || !Attack.isInsideRange(gameMap, gun, currentPosition, targetNode, getDirection(currentPosition, targetNode))) &&
-                    !Attack.isInsideRange(gameMap, melee, currentPosition, targetNode, getDirection(currentPosition, targetNode))) &&
-                    (throwable == null || !Attack.isInsideRange(gameMap, throwable, currentPosition, targetNode, getDirection(currentPosition, targetNode)))) {
-                Main.lockedTarget = null; // Reset mục tiêu nếu không thể tấn công
+                if (((gun == null || !Attack.isInsideRange(gameMap, gun, currentPosition, targetNode, getDirection(currentPosition, targetNode))) &&
+                        !Attack.isInsideRange(gameMap, melee, currentPosition, targetNode, getDirection(currentPosition, targetNode))) &&
+                        (throwable == null || !Attack.isInsideRange(gameMap, throwable, currentPosition, targetNode, getDirection(currentPosition, targetNode)))) {
+                    Main.lockedTarget = null; // Reset target if cannot attack
+                }
+
+                movementSet(gameMap, hero, Main.lockedTarget, hero.getGameMap().getCurrentPlayer().getHealth());
+            } else {
+                System.out.println("Cannot attack locked target: " + (lockedTarget != null ? lockedTarget.getId() : "null"));
             }
-            return; // Nếu có thể tấn công từ vị trí hiện tại, không cần di chuyển
+            return;
         }
 
         hero.move(step);
-        System.out.println("Di chuyển 1 bước về hướng " + step + " để tiếp cận mục tiêu: " + gameMap.getElementByIndex(targetNode.x, targetNode.y).getId());
+        System.out.println("Moved 1 step " + step + " towards target: " + gameMap.getElementByIndex(targetNode.x, targetNode.y).getId());
     }
 
     // Hàm phân tích và cập nhật chiến thuật

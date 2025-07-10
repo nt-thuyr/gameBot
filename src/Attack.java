@@ -7,6 +7,7 @@ import jsclub.codefest.sdk.model.Inventory;
 import jsclub.codefest.sdk.model.obstacles.Obstacle;
 import jsclub.codefest.sdk.model.obstacles.ObstacleTag;
 import jsclub.codefest.sdk.model.players.Player;
+import jsclub.codefest.sdk.model.support_items.SupportItem;
 import jsclub.codefest.sdk.model.weapon.Weapon;
 
 import java.io.IOException;
@@ -31,6 +32,27 @@ public class Attack {
         if (inventory.getSpecial() != null) dmg += inventory.getSpecial().getDamage();
         System.out.println("Current damage: " + dmg);
         return dmg;
+    }
+
+    static int currentDefense(Hero hero) {
+        Inventory inventory = hero.getInventory();
+        int def = 0;
+        if (inventory.getArmor() != null) def += inventory.getArmor().getDamageReduce();
+        if (inventory.getHelmet() != null) def += inventory.getHelmet().getDamageReduce();
+        System.out.println("Current defense: " + def);
+        return def;
+    }
+
+    static int currentHealing(Hero hero) {
+        Inventory inventory = hero.getInventory();
+        int heal = 0;
+        if (inventory.getListSupportItem() != null) {
+            for (SupportItem item : inventory.getListSupportItem()) {
+                heal += item.getHealingHP();
+            }
+        }
+        System.out.println("Current healing: " + heal);
+        return heal;
     }
 
     static boolean isInsideRange(GameMap gameMap, Weapon weapon, Node from, Node to, String direction) {
@@ -241,5 +263,13 @@ public class Attack {
             }
         }
         return null; // Không có player nào gần
+    }
+
+    static boolean isCombatReady(Hero hero) {
+        // Kiểm tra trang bị
+        return  (currentDamage(hero) >= 40 && currentDefense(hero) >= 20 &&
+                (currentHealing(hero) >= 20 || hero.getInventory().getListSupportItem().size() == 4) &&
+                hero.getGameMap().getCurrentPlayer().getHealth() >= 80);
+
     }
 }
