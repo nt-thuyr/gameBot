@@ -208,7 +208,7 @@ public class ItemManager {
         }
     }
 
-    static Obstacle checkIfHasChest(GameMap gameMap) {
+    static Obstacle checkIfHasChest(GameMap gameMap, int range) {
         Player player = gameMap.getCurrentPlayer();
         Node currentPosition = player.getPosition();
 
@@ -217,7 +217,7 @@ public class ItemManager {
 
         for (Obstacle obstacle : gameMap.getListObstacles()) {
             if (!checkInsideSafeArea(obstacle, safeZone, mapSize)) continue;
-            if (distance(currentPosition, obstacle.getPosition()) <= 5 && "CHEST".equals(obstacle.getId())) {
+            if (distance(currentPosition, obstacle.getPosition()) <= range && "CHEST".equals(obstacle.getId())) {
                 System.out.println("Có rương kho báu gần đây, hãy mở nó!");
                 return obstacle;
             }
@@ -232,7 +232,7 @@ public class ItemManager {
         Node currentPosition = player.getPosition();
 
         Weapon specialWeapon = hero.getInventory().getSpecial();
-        if (targetChest.getId().equals("DRAGON_EGG") && specialWeapon != null && specialWeapon.getId().equals("ROPE")) {
+        if (specialWeapon != null && specialWeapon.getId().equals("ROPE")) {
             String direction = Main.getDirection(currentPosition, targetChestNode);
             if (distance(currentPosition, targetChestNode) > 3 && Attack.isInsideRange(gameMap, specialWeapon, currentPosition, targetChestNode, direction)) {
                 hero.useSpecial(direction);
@@ -301,11 +301,11 @@ public class ItemManager {
         return false;
     }
 
-    public static void pickUpNearestWeapon(Hero hero, GameMap gameMap) throws IOException, InterruptedException {
+    public static boolean pickUpNearestWeapon(Hero hero, GameMap gameMap) throws IOException, InterruptedException {
         List<Weapon> weapons = gameMap.getListWeapons();
         if (weapons == null || weapons.isEmpty()) {
             System.out.println("Không tìm thấy vũ khí trên bản đồ!");
-            return;
+            return false;
         }
 
         Node currentPosition = gameMap.getCurrentPlayer().getPosition();
@@ -332,7 +332,7 @@ public class ItemManager {
 
         if (nearestWeapon == null) {
             System.out.println("Không tìm thấy vũ khí hợp lệ trong vùng an toàn!");
-            return;
+            return false;
         }
 
         if (distance(currentPosition, nearestNode) > 0) {
@@ -344,6 +344,8 @@ public class ItemManager {
             ItemManager.swapItem(gameMap, hero);
             System.out.println("Đang đứng trên vũ khí, thực hiện nhặt.");
         }
+
+        return true;
     }
 
     public static Obstacle hasEgg(GameMap gameMap) {

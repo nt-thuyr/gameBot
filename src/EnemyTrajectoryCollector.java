@@ -45,7 +45,7 @@ public class EnemyTrajectoryCollector {
      * Gọi hàm này mỗi tick đầu game để thu thập lịch sử vị trí enemy.
      * Khi đã đủ dữ liệu, manager sẽ tự động dừng.
      */
-    static void collect(GameMap gameMap, int currentTick) {
+     void collect(GameMap gameMap, int currentTick) {
         if (ready) return;
         List<Enemy> enemies = gameMap.getListEnemies();
         // Bước 1: mapping từng cá thể enemy hiện tại với key duy nhất
@@ -61,7 +61,7 @@ public class EnemyTrajectoryCollector {
 
             // Lưu vào history nếu khác last position
             List<Node> history = enemyHistory.getOrDefault(key, new ArrayList<>());
-            if (history.isEmpty() || !currentPos.equals(history.get(history.size() - 1))) {
+            if (history.isEmpty() || !currentPos.equals(history.getLast())) {
                 history.add(new Node(currentPos.getX(), currentPos.getY()));
             }
             enemyHistory.put(key, history);
@@ -94,30 +94,30 @@ public class EnemyTrajectoryCollector {
     }
 
     /** Đã đủ dữ liệu cho mọi enemy cá thể? */
-    static boolean isReady() {
+     boolean isReady() {
         return ready;
     }
 
     /** Lấy TrajectoryInfo của enemy theo key (id + spawn pos) */
-    static TrajectoryInfo getTrajectory(String id, Node spawnPos) {
+     TrajectoryInfo getTrajectory(String id, Node spawnPos) {
         return trajectoryMap.get(getEnemyKey(id, spawnPos));
     }
 
-    /** Lấy toàn bộ lịch trình enemy: key -> Info */
-     Map<String, TrajectoryInfo> getAllTrajectories() {
-        return trajectoryMap;
-    }
-
-    /** Lấy key của tất cả enemy đã thu thập */
-     Set<String> getAllKeys() {
-        return trajectoryMap.keySet();
-    }
-
-    /**
-     * Hỗ trợ: Lấy key phân biệt các cá thể enemy hiện tại trên map (dùng cho pathfinding)
-     */
-     static String getKeyForEnemyOnMap(Enemy enemy) {
-        Node pos = enemy.getPosition();
-        return getEnemyKey(enemy.getId(), pos);
-    }
+//    /** Lấy toàn bộ lịch trình enemy: key -> Info */
+//     Map<String, TrajectoryInfo> getAllTrajectories() {
+//        return trajectoryMap;
+//    }
+//
+//    /** Lấy key của tất cả enemy đã thu thập */
+//     Set<String> getAllKeys() {
+//        return trajectoryMap.keySet();
+//    }
+//
+//    /**
+//     * Hỗ trợ: Lấy key phân biệt các cá thể enemy hiện tại trên map (dùng cho pathfinding)
+//     */
+//     static String getKeyForEnemyOnMap(Enemy enemy) {
+//        Node pos = enemy.getPosition();
+//        return getEnemyKey(enemy.getId(), pos);
+//    }
 }

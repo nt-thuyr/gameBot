@@ -29,6 +29,7 @@ public class Attack {
         if (inventory.getGun() != null) dmg += inventory.getGun().getDamage();
 //        if (inventory.getThrowable() != null) dmg += inventory.getThrowable().getDamage();
         if (inventory.getSpecial() != null) dmg += inventory.getSpecial().getDamage();
+        System.out.println("Current damage: " + dmg);
         return dmg;
     }
 

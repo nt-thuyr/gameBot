@@ -108,25 +108,23 @@ public class Health {
         }
 
         // Nếu có Magic, không có locked target hoặc locked target khỏe hơn
-        // Sau khi sử dụng thì xóa locked target hiện tại
+        // Sau khi sử dụng thì locked target yếu nhất
         // Hiệu ứng: tàng hình
         if (supportItemInv.stream().anyMatch(item -> item.getId().equals("MAGIC")) &&
                 (Main.lockedTarget == null || Main.lockedTarget.getHealth() > currentHealth)) {
             try {
                 hero.useItem("MAGIC");
-                Main.lockedTarget = null;
+                Main.lockedTarget = Attack.findWeakestPlayer(gameMap);
             } catch (IOException e) {
                 System.out.println("Lỗi khi sử dụng MAGIC: " + e.getMessage());
             }
         }
 
-        // Nếu có Compass, khu vực hiện tại có nhiều hơn 2 người, không có locked target hoặc locked target khỏe hơn mình, lần cuối sử dụng là 10 step trước
+        // Nếu có Compass, khu vực hiện tại có ít nhất 2 người chơi, không có locked target hoặc locked target khỏe hơn mình, lần cuối sử dụng là 10 step trước
         // Sau khi sử dụng thì target đến player gần nhất
         // Hiệu ứng: làm choáng player trong 9*9
         if (supportItemInv.stream().anyMatch(item -> item.getId().equals("COMPASS"))) {
-            if (MapManager.isCurrentAreaCrowded(gameMap, 2) &&
-                    currentHealth >= Main.maxHealth &&
-                    (Main.lockedTarget == null || Main.lockedTarget.getHealth() > currentHealth)) {
+            if (MapManager.isCurrentAreaCrowded(gameMap, 2) && (Main.lockedTarget == null || Main.lockedTarget.getHealth() > currentHealth)) {
                 if (gameMap.getStepNumber() > lastUsedCompass + 10) {
                     try {
                         hero.useItem("COMPASS");
