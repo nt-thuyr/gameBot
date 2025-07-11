@@ -58,6 +58,9 @@ public class ItemManager {
 
         if (inventory.getListSupportItem().size() >= 4) {
             for (SupportItem invSupportItem : inventory.getListSupportItem()) {
+                if ("COMPASS".equals(invSupportItem.getId()) || "MAGIC".equals(invSupportItem.getId())) {
+                    continue;
+                }
                 if (item.getHealingHP() < invSupportItem.getHealingHP() && invSupportItem.getHealingHP() > minHealingHP) {
                     minSupportItem = invSupportItem;
                     minHealingHP = invSupportItem.getHealingHP();

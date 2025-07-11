@@ -5,6 +5,7 @@ import jsclub.codefest.sdk.model.Element;
 import jsclub.codefest.sdk.model.ElementType;
 import jsclub.codefest.sdk.model.GameMap;
 import jsclub.codefest.sdk.Hero;
+import jsclub.codefest.sdk.model.Inventory;
 import jsclub.codefest.sdk.model.npcs.Enemy;
 import jsclub.codefest.sdk.model.obstacles.Obstacle;
 import jsclub.codefest.sdk.model.players.Player;
@@ -18,7 +19,7 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "118391";
+    private static final String GAME_ID = "162040";
     private static final String PLAYER_NAME = "botable";
     private static final String SECRET_KEY = "sk-9tCiKF60Sxi0KVc1ZtiQdw:mGiTucg2md7pM_jn7C19ZKq_KTUJIhBlnOUYLE5mEgH42V86LMruay6aH7TnYe1m_MmCok6c3KiTWJS0IjkJBg";
 
@@ -120,9 +121,30 @@ public class Main {
                     }
                 }
 
+                // Nếu có lockedTarget và không có vũ khí, mở rương nếu có
+                Obstacle nearChest = ItemManager.checkIfHasChest(gameMap, 5);
+                if (nearChest != null) {
+                    lastChestPosition = new Node(nearChest.getX(), nearChest.getY());
+                    lastChest = nearChest;
+                    try {
+                        ItemManager.openChest(gameMap, hero, nearChest);
+                    } catch (IOException e) {
+                        System.out.println("Lỗi khi mở rương: " + e.getMessage());
+                    }
+                    return;
+                }
+
+                // Nếu có lockedTarget mà không có vũ khí, nhặt item quanh hero
+                Inventory inventory = hero.getInventory();
+                if (lockedTarget != null && (inventory.getGun() == null && inventory.getThrowable() == null &&
+                        inventory.getSpecial() == null && "HAND".equals(inventory.getMelee().getId()))) {
+                    ItemManager.lootNearbyItems(hero, gameMap, 5);
+                }
+
                 // Ưu tiên 5: tấn công locked target
-//                System.out.println("=== CHECKING PRIORITY 5: LOCKED TARGET ===");
+//              System.out.println("=== CHECKING PRIORITY 5: LOCKED TARGET ===");
                 if (lockedTarget != null) {
+                    // Kiểm tra xem locked target có còn sống không
                     Player current = null;
                     for (Player p : gameMap.getOtherPlayerInfo()) {
                         if (p.getId().equals(lockedTarget.getId())) {
@@ -248,24 +270,32 @@ public class Main {
             SupportItem healingItem = Health.findBestHealingItem(hero.getInventory().getListSupportItem(), maxHealth - currentHealth);
             if (currentHealth < maxHealth * 0.8f && healingItem != null) {
                 hero.useItem(healingItem.getId());
-                return; // Nếu đã sử dụng vật phẩm hồi máu, không cần làm gì khác
+                return;
             }
 
-            // Nếu nằm trong tầm của throwable hoặc không có vũ khí cận chiến thì không tiếp tục di chuyển
-        Node currentPos = hero.getGameMap().getCurrentPlayer().getPosition();
-        Node targetPos = target.getPosition();
-        if (currentPos == null || targetPos == null) {
-            System.out.println("currentPos or targetPos is null, cannot proceed.");
-            return;
-        }
-        String dir = getDirection(currentPos, targetPos);
-        if (Attack.isInsideRange(gameMap, hero.getInventory().getThrowable(), targetPos, currentPos, dir)) {
-            return;
-        } else {
-            System.out.println("Mục tiêu không trong tầm throwable, tiếp tục di chuyển.");
-        }
+            Node currentPos = hero.getGameMap().getCurrentPlayer().getPosition();
+            Node targetPos = target.getPosition();
+            if (currentPos == null || targetPos == null) {
+                System.out.println("currentPos or targetPos is null, cannot proceed.");
+                return;
+            }
+            String dir = getDirection(currentPos, targetPos);
 
-        moveToTarget(hero, target, gameMap);
+            Weapon throwable = hero.getInventory().getThrowable();
+            boolean hasThrowable = (throwable != null);
+
+            boolean inThrowableRange = hasThrowable && Attack.isInsideRange(gameMap, throwable, currentPos, targetPos, dir);
+
+            // Nếu có throwable và mục tiêu đang trong tầm, thì đứng lại và không tiến tới nữa
+            if (inThrowableRange) {
+                System.out.println("Mục tiêu trong tầm throwable, đứng lại để dùng throwable.");
+                return;
+            }
+
+            // Nếu không có throwable hoặc mục tiêu ngoài tầm, thì tiếp tục di chuyển tới
+            System.out.println("Mục tiêu ngoài tầm throwable hoặc không có throwable, tiến tới.");
+            moveToTarget(hero, target, gameMap);
+
         } catch (IOException | InterruptedException e) {
             System.out.println("Lỗi khi tấn công target (người gần nhất): " + e.getMessage());
         }
@@ -273,7 +303,7 @@ public class Main {
 
     public static List<Node> getRestrictedNodes(GameMap gameMap) {
         List<Node> restrictedNodes = new ArrayList<>();
-        int enemyRange = 2;
+        int enemyRange = 1;
         int futureTickCount = 3;
 
         // Logic cũ cho enemy và obstacles (giữ nguyên)
