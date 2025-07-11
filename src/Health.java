@@ -17,12 +17,12 @@ public class Health {
 
     private static long lastUsedCompass = 0; // Biến để lưu thời gian sử dụng la bàn
 
-    static Node checkIfHasNearbyAlly(GameMap gameMap) {
+    static Node checkIfHasNearbyAlly(GameMap gameMap, int radius) {
         Node currentPosition = gameMap.getCurrentPlayer().getPosition();
         List<Ally> allies = gameMap.getListAllies();
 
         for (Ally ally : allies) {
-            if (distance(currentPosition, ally.getPosition()) <= 8 && ally.getCooldownStepLeft() <= 1) {
+            if (distance(currentPosition, ally.getPosition()) <= radius && ally.getCooldownStepLeft() <= 1) {
                 return new Node(ally.getX(), ally.getX());
             }
         }
@@ -30,7 +30,24 @@ public class Health {
         return null;
     }
 
-    static void moveToAlley(GameMap gameMap, Node allyNode, Hero hero) {
+    static Node findNearestAlly(GameMap gameMap) {
+        Node currentPosition = gameMap.getCurrentPlayer().getPosition();
+        List<Ally> allies = gameMap.getListAllies();
+        Node nearestAlly = null;
+        float minDistance = Float.MAX_VALUE;
+
+        for (Ally ally : allies) {
+            float dist = distance(currentPosition, ally.getPosition());
+            if (dist < minDistance && ally.getCooldownStepLeft() <= 1) {
+                minDistance = dist;
+                nearestAlly = ally.getPosition();
+            }
+        }
+
+        return nearestAlly;
+    }
+
+    static void moveToAlly(GameMap gameMap, Node allyNode, Hero hero) {
         Player currentPlayer = gameMap.getCurrentPlayer();
 
         // Nếu chưa ở vị trí vũ khí, tính đường đi
@@ -53,10 +70,10 @@ public class Health {
     }
 
     static boolean healByAlly(GameMap gameMap, Hero hero) {
-        Node allyNode = checkIfHasNearbyAlly(gameMap);
+        Node allyNode = checkIfHasNearbyAlly(gameMap, 8);
         if (allyNode != null) {
             System.out.println("Đã tìm thấy ally ở gần");
-            moveToAlley(gameMap, allyNode, hero);
+            moveToAlly(gameMap, allyNode, hero);
         } else {
             System.out.println("Không có ally gần để hồi máu");
             return false;

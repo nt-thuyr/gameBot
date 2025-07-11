@@ -6,6 +6,7 @@ import jsclub.codefest.sdk.model.ElementType;
 import jsclub.codefest.sdk.model.GameMap;
 import jsclub.codefest.sdk.Hero;
 import jsclub.codefest.sdk.model.Inventory;
+import jsclub.codefest.sdk.model.npcs.Ally;
 import jsclub.codefest.sdk.model.npcs.Enemy;
 import jsclub.codefest.sdk.model.obstacles.Obstacle;
 import jsclub.codefest.sdk.model.players.Player;
@@ -95,6 +96,13 @@ public class Main {
                         throw new RuntimeException(e);
                     }
                 }
+
+                // 45 giây cuối: bám theo ally
+                if (gameMap.getStepNumber() >= 510 && gameMap.getStepNumber() <= 600) {
+                    Node nearestAlly = Health.findNearestAlly(gameMap);
+                    Health.moveToAlly(gameMap, nearestAlly, hero);
+                }
+
 
                 // Ưu tiên 4: mở trứng nếu có trứng bất kể vị trí
 //                System.out.println("=== CHECKING PRIORITY 4: DRAGON EGG ===");
