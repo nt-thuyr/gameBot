@@ -123,17 +123,39 @@ public class Main {
                     }
                 }
 
-                // 45 giây cuối: bám theo ally
+                // 45 giây cuối
+                List<SupportItem> supportItems = hero.getInventory().getListSupportItem();
                 if (gameMap.getStepNumber() >= 510 && gameMap.getStepNumber() <= 600) {
-                    Node nearestAlly = Health.findNearestAlly(gameMap);
-                    if (nearestAlly != null) {
-                        System.out.println("Đang bám theo ally: " + nearestAlly);
-                        Health.moveToAlly(gameMap, nearestAlly, hero);
-                    } else {
-                        System.out.println("Không tìm thấy ally gần nhất.");
+                    // Nếu trong người có support item thì tấn công người chơi yếu máu hơn gần nhất
+                    if (!supportItems.isEmpty()) {
+                        Player weakestPlayer = Attack.findWeakestPlayer(gameMap, 7, currentPosition);
+                        if (weakestPlayer != null) {
+                            lockedTarget = weakestPlayer;
+                            System.out.println("Đang tấn công người chơi yếu máu nhất: " + weakestPlayer.getId() + ", máu: " + weakestPlayer.getHealth());
+                            movementSet(gameMap, hero, weakestPlayer, currentHealth);
+                            return; // Đã tấn công thành công
+                        } else {
+                            System.out.println("Không tìm thấy người chơi yếu máu trong bán kính 7, bám theo ally");
+                            Node nearestAlly = Health.findNearestAlly(gameMap);
+                            if (nearestAlly != null) {
+                                System.out.println("Đang bám theo ally: " + nearestAlly);
+                                Health.moveToAlly(gameMap, nearestAlly, hero);
+                            } else {
+                                System.out.println("Không tìm thấy ally gần nhất.");
+                            }
+                        }
+                    }
+                    // Nếu trong người không có support item thì bám theo ally
+                    else {
+                        Node nearestAlly = Health.findNearestAlly(gameMap);
+                        if (nearestAlly != null) {
+                            System.out.println("Đang bám theo ally: " + nearestAlly);
+                            Health.moveToAlly(gameMap, nearestAlly, hero);
+                        } else {
+                            System.out.println("Không tìm thấy ally gần nhất.");
+                        }
                     }
                 }
-
 
                 // Ưu tiên hồi máu nếu máu dưới 80% và không có locked target hoặc locked target máu cao hơn mình
                 if (currentHealth < maxHealth * 0.8f && (lockedTarget == null || lockedTarget.getHealth() > currentHealth + 10)) {
