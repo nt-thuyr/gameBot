@@ -101,6 +101,7 @@ public class Main {
                 if (gameMap.getStepNumber() >= 510 && gameMap.getStepNumber() <= 600) {
                     Node nearestAlly = Health.findNearestAlly(gameMap);
                     Health.moveToAlly(gameMap, nearestAlly, hero);
+                    return;
                 }
 
 
