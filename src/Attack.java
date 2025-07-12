@@ -145,7 +145,7 @@ public class Attack {
 
     // Hàm tìm người chơi yếu máu nhất
     // Tìm player yếu máu nhất, nếu đều bằng nhau thì trả về null
-    static Player findWeakestPlayer(GameMap gameMap) {
+    static Player findWeakestPlayer(GameMap gameMap, int range, Node currentPosition) {
         List<Player> players = gameMap.getOtherPlayerInfo();
         if (players == null || players.isEmpty()) return null;
 
@@ -156,6 +156,7 @@ public class Attack {
 
         for (Player p : players) {
             if (p.getPosition() == null || p.getHealth() <= 0) continue;
+            if (distance(currentPosition, p.getPosition()) > range) continue;
             if (firstHp == null) firstHp = p.getHealth();
             else if (!Objects.equals(p.getHealth(), firstHp)) allEqual = false;
 

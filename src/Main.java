@@ -100,11 +100,9 @@ public class Main {
                 }
 
                 // Ưu tiên 1: Sử dụng item hỗ trợ đặc biệt nếu có
-//                System.out.println("=== CHECKING PRIORITY 1: USE SPECIAL ITEM ===");
                 Health.useSpecialSupportItem(gameMap, hero);
 
                 // Ưu tiên 2: Nếu đang trong chế độ retreat
-//                System.out.println("=== CHECKING PRIORITY 2: RETREAT ===");
                 System.out.println("Health: " + currentHealth + ". Retreat: " + (retreatTarget != null ? retreatTarget : "Không"));
                 if (retreatTarget != null) {
                     if (executeRetreat(gameMap, hero)) {
@@ -116,7 +114,6 @@ public class Main {
                 System.out.println("Locked target: " + (lockedTarget != null ? lockedTarget.getId() + " (HP: " + lockedTarget.getHealth() + ")" : "null"));
 
                 // Ưu tiên 3: Nếu máu thấp và ở khu vực không đông người, ưu tiên sử dụng Unicorn Blood
-//                System.out.println("=== CHECKING PRIORITY 3: UNICORN BLOOD ===");
                 if (currentHealth <= maxHealth * 0.25f && hero.getInventory().getListSupportItem().stream().anyMatch(item -> item.getId().equals("UNICORN_BLOOD"))) {
                     try {
                         hero.useItem("UNICORN_BLOOD");
@@ -129,12 +126,34 @@ public class Main {
                 // 45 giây cuối: bám theo ally
                 if (gameMap.getStepNumber() >= 510 && gameMap.getStepNumber() <= 600) {
                     Node nearestAlly = Health.findNearestAlly(gameMap);
-                    Health.moveToAlly(gameMap, nearestAlly, hero);
+                    if (nearestAlly != null) {
+                        System.out.println("Đang bám theo ally: " + nearestAlly);
+                        Health.moveToAlly(gameMap, nearestAlly, hero);
+                    } else {
+                        System.out.println("Không tìm thấy ally gần nhất.");
+                    }
                 }
 
 
-                // Ưu tiên 4: mở trứng nếu có trứng bất kể vị trí
-//                System.out.println("=== CHECKING PRIORITY 4: DRAGON EGG ===");
+                // Ưu tiên hồi máu nếu máu dưới 80% và không có locked target hoặc locked target máu cao hơn mình
+                if (currentHealth < maxHealth * 0.8f && (lockedTarget == null || lockedTarget.getHealth() > currentHealth + 10)) {
+                    if (Health.healByAlly(gameMap, hero)) {
+                        return;
+                    } else {
+                        Element healingItem = Health.findBestHealingItem(hero.getInventory().getListSupportItem(), maxHealth - currentHealth);
+                        if (healingItem != null) {
+                            try {
+                                hero.useItem(healingItem.getId());
+                                System.out.println("Đã sử dụng vật phẩm hồi máu: " + healingItem + ", máu hiện tại: " + currentHealth);
+                            } catch (IOException e) {
+                                System.out.println("Lỗi khi sử dụng vật phẩm hồi máu: " + e.getMessage());
+                            }
+                            return;
+                        }
+                    }
+                }
+
+                // Ưu tiên mở trứng nếu có trứng bất kể vị trí
                 Obstacle targetEgg = ItemManager.hasEgg(gameMap);
                 if (targetEgg != null && (lockedTarget == null || lockedTarget.getHealth() > currentHealth + 10)) {
                     System.out.println("Đã tìm thấy trứng: " + targetEgg.getId() + ", vị trí: " + targetEgg.getPosition());
@@ -178,8 +197,7 @@ public class Main {
                     ItemManager.lootNearbyItems(hero, gameMap, 5);
                 }
 
-                // Ưu tiên 5: tấn công locked target
-//              System.out.println("=== CHECKING PRIORITY 5: LOCKED TARGET ===");
+                // Ưu tiên tấn công locked target
                 if (lockedTarget != null) {
                     // Kiểm tra xem locked target có còn sống không
                     Player current = null;
@@ -199,27 +217,7 @@ public class Main {
                 }
 
 
-                // Ưu tiên 6: hồi máu nếu máu dưới 80%
-//                System.out.println("=== CHECKING PRIORITY 6: HEAL ===");
-                if (currentHealth < maxHealth * 0.8f) {
-                    if (Health.healByAlly(gameMap, hero)) {
-                        return;
-                    } else {
-                        Element healingItem = Health.findBestHealingItem(hero.getInventory().getListSupportItem(), maxHealth - currentHealth);
-                        if (healingItem != null) {
-                            try {
-                                hero.useItem(healingItem.getId());
-                                System.out.println("Đã sử dụng vật phẩm hồi máu: " + healingItem + ", máu hiện tại: " + currentHealth);
-                            } catch (IOException e) {
-                                System.out.println("Lỗi khi sử dụng vật phẩm hồi máu: " + e.getMessage());
-                            }
-                            return;
-                        }
-                    }
-                }
-
-                // Ưu tiên 7: nếu có kẻ địch ở gần và đủ khả năng tấn công thì tấn công
-//                System.out.println("=== CHECKING PRIORITY 7: PLAYER NEARBY ===");
+                // Ưu tiên tấn công kẻ địch ở gần và đủ khả năng tấn công thì tấn công
                 Player player = Attack.checkIfHasNearbyPlayer(gameMap, 3);
                 if (player != null) {
                     lockedTarget = player;
@@ -227,8 +225,7 @@ public class Main {
                     return;
                 }
 
-                // Ưu tiên 8: mở rương nếu có rương trong phạm vi
-//                System.out.println("=== CHECKING PRIORITY 8: CHEST ===");
+                // Ưu tiên mở rương nếu có rương trong phạm vi
                 Obstacle targetChest = ItemManager.checkIfHasChest(gameMap, 5);
                 if (targetChest != null) {
                     lastChestPosition = new Node(targetChest.getX(), targetChest.getY());
@@ -241,15 +238,13 @@ public class Main {
                     return;
                 }
 
-                // Ưu tiên 9: loot item tốt hơn xung quanh nếu có
-//                System.out.println("=== CHECKING PRIORITY 9: LOOT NEARBY ITEMS ===");
+                // Ưu tiên loot item tốt hơn xung quanh nếu có
                 lootRadius = 3;
                 if (ItemManager.lootNearbyItems(hero, gameMap, lootRadius)) {
                     return;
                 }
 
-                // Ưu tiên 10: nếu chỉ số tấn công bé hơn 40, tiếp tục nhặt vũ khí
-//                System.out.println("=== CHECKING PRIORITY 10: FIND WEAPON ===");
+                // Ưu tiên tiếp tục nhặt vũ khí nếu chỉ số tấn công bé hơn 40
                 if (!Attack.isCombatReady(hero)) {
                     try {
                         if (!ItemManager.pickUpNearestWeapon(hero, gameMap)) {
@@ -270,9 +265,8 @@ public class Main {
                     }
                 }
 
-                // Ưu tiên 11: tấn công người chơi yếu nhất hoặc gần nhất
-//                System.out.println("=== CHECKING PRIORITY 11: FIND LOCKED TARGET ===");
-                Player weakest = Attack.findWeakestPlayer(gameMap);
+                // Ưu tiên tấn công người chơi yếu nhất (trong range 10) hoặc gần nhất
+                Player weakest = Attack.findWeakestPlayer(gameMap, 10, currentPosition);
                 if (weakest != null) {
                     lockedTarget = weakest;
                     movementSet(gameMap, hero, weakest, currentHealth);

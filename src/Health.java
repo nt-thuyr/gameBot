@@ -131,7 +131,7 @@ public class Health {
                 (Main.lockedTarget == null || Main.lockedTarget.getHealth() > currentHealth)) {
             try {
                 hero.useItem("MAGIC");
-                Main.lockedTarget = Attack.findWeakestPlayer(gameMap);
+                Main.lockedTarget = Attack.findWeakestPlayer(gameMap, 15, currentPlayer.getPosition());
             } catch (IOException e) {
                 System.out.println("Lỗi khi sử dụng MAGIC: " + e.getMessage());
             }
