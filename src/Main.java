@@ -20,7 +20,7 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "162040";
+    private static final String GAME_ID = "135150";
     private static final String PLAYER_NAME = "botable";
     private static final String SECRET_KEY = "sk-9tCiKF60Sxi0KVc1ZtiQdw:mGiTucg2md7pM_jn7C19ZKq_KTUJIhBlnOUYLE5mEgH42V86LMruay6aH7TnYe1m_MmCok6c3KiTWJS0IjkJBg";
 
@@ -50,6 +50,35 @@ public class Main {
 
                 float currentHealth = gameMap.getCurrentPlayer().getHealth();
                 System.out.println("========== Step: " + gameMap.getStepNumber() + " ==========");
+
+                // 10 giây đầu nhặt item ở gần
+                if (gameMap.getStepNumber() < 20) {
+                        ItemManager.lootNearbyItems(hero, gameMap, 5);
+                }
+
+                // Có người chơi ở gần thì bem luôn
+                if (gameMap.getStepNumber() < 20) {
+                    // Nếu có vũ khí thì bem player trong bán kính 3
+                    if (InventoryManager.checkIfHasWeapon(hero)) {
+                        Player nearByPlayer = Attack.checkIfHasNearbyPlayer(gameMap, 3);
+                        if (nearByPlayer != null) {
+                            lockedTarget = nearByPlayer;
+                            System.out.println("Đã tìm thấy người chơi gần nhất: " + nearByPlayer.getId() + ", máu: " + nearByPlayer.getHealth());
+                        } else {
+                            System.out.println("Không có người chơi gần nào.");
+                        }
+                    }
+                    // Nếu không có vũ khí thì bem player trong bán kính 2
+                    else {
+                        Player nearByPlayer = Attack.checkIfHasNearbyPlayer(gameMap, 2);
+                        if (nearByPlayer != null) {
+                            lockedTarget = nearByPlayer;
+                            System.out.println("Đã tìm thấy người chơi gần nhất: " + nearByPlayer.getId() + ", máu: " + nearByPlayer.getHealth());
+                        } else {
+                            System.out.println("Không có người chơi gần nào.");
+                        }
+                    }
+                }
 
                 // Kiểm tra xem có đang ở ngoài vùng an toàn không
                 Node currentPosition = gameMap.getCurrentPlayer().getPosition();
@@ -191,7 +220,7 @@ public class Main {
 
                 // Ưu tiên 7: nếu có kẻ địch ở gần và đủ khả năng tấn công thì tấn công
 //                System.out.println("=== CHECKING PRIORITY 7: PLAYER NEARBY ===");
-                Player player = Attack.checkIfHasNearbyPlayer(gameMap);
+                Player player = Attack.checkIfHasNearbyPlayer(gameMap, 3);
                 if (player != null) {
                     lockedTarget = player;
                     movementSet(gameMap, hero, player, currentHealth);

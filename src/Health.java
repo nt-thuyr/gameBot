@@ -38,7 +38,7 @@ public class Health {
 
         for (Ally ally : allies) {
             float dist = distance(currentPosition, ally.getPosition());
-            if (dist < minDistance && ally.getCooldownStepLeft() <= 1) {
+            if (dist < minDistance) {
                 minDistance = dist;
                 nearestAlly = ally.getPosition();
             }

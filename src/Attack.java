@@ -295,7 +295,7 @@ public class Attack {
     }
 
      // Kiểm tra xem có player nào gần vị trí hiện tại không
-    static Player checkIfHasNearbyPlayer(GameMap gameMap) {
+    static Player checkIfHasNearbyPlayer(GameMap gameMap, int radius) {
         List<Player> players = gameMap.getOtherPlayerInfo();
         if (players == null || players.isEmpty()) return null;
 
@@ -303,7 +303,7 @@ public class Attack {
 
         for (Player player : players) {
             if (player.getHealth() <= 0) continue; // Bỏ qua player đã chết
-            if (distance(currentPosition, player.getPosition()) <= 3) {
+            if (distance(currentPosition, player.getPosition()) <= radius) {
                 return player; // Trả về player gần nhất
             }
         }
