@@ -279,6 +279,38 @@ public class Attack {
                     System.out.println("Tấn công cận chiến về hướng " + direction);
                     lastMeleeStep = gameMap.getStepNumber();
                     attacked = true;
+
+                    // Ném vật phẩm nếu trong tầm và hết cooldown
+                    if (isInsideRange(gameMap, throwable, currentPosition, targetNode, direction)
+                            && gameMap.getStepNumber() - lastThrowStep >= throwable.getCooldown()) {
+                        hero.throwItem(direction);
+                        System.out.println("Ném vật phẩm về hướng " + direction);
+                        lastThrowStep = gameMap.getStepNumber();
+                        attacked = true;
+                    }
+
+                    // Dùng vũ khí đặc biệt nếu trong tầm và hết cooldown
+                    if (isInsideRange(gameMap, special, currentPosition, targetNode, direction)
+                            && gameMap.getStepNumber() - lastSpecialStep >= special.getCooldown()) {
+                        // Không sử dụng rope với kẻ địch ở gần
+                        if ((special.getId().equals("ROPE") && distance(currentPosition, targetNode) > 2 &&
+                                (gun.getId().equals("SHOTGUN") || melee.getDamage() >= 40)) ||
+                                !special.getId().equals("ROPE")) {
+                            hero.useSpecial(direction);
+                            System.out.println("Dùng vũ khí đặc biệt về hướng " + direction);
+                            lastSpecialStep = gameMap.getStepNumber();
+                            attacked = true;
+                        }
+                    }
+
+                    // Bắn súng nếu trong tầm và hết cooldown
+                    if (isInsideRange(gameMap, gun, currentPosition, targetNode, direction)
+                            && gameMap.getStepNumber() - lastShotStep >= gun.getCooldown()) {
+                        hero.shoot(direction);
+                        System.out.println("Bắn súng về hướng " + direction);
+                        lastShotStep = gameMap.getStepNumber();
+                        attacked = true;
+                    }
                 }
 
 
