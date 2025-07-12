@@ -294,4 +294,65 @@ public class MapManager {
             System.out.println("Không tìm thấy điểm an toàn nào phù hợp trong bo!");
         }
     }
+
+    private static Map<String, Float> lastHpMap = new HashMap<>();
+
+    /**
+     * Nhận biết player yếu máu trong các cặp giao chiến ở gần.
+     * Nếu chỉ còn 1 người yếu máu ở gần, cũng trả về để ưu tiên tấn công.
+     */
+    public static List<Player> detectCombatAndFinishTargets(GameMap gameMap, float lowHpThreshold, int pairRange) {
+        List<Player> players = gameMap.getOtherPlayerInfo();
+        List<Player> finishTargets = new ArrayList<>();
+        if (players == null || players.isEmpty()) return finishTargets;
+
+        // Cập nhật lịch sử máu
+        for (Player p : players) {
+            lastHpMap.put(p.getId(), p.getHealth());
+        }
+
+        // Xử lý các cặp giao chiến
+        Set<String> added = new HashSet<>(); // Tránh trùng lặp
+        for (int i = 0; i < players.size(); i++) {
+            Player p1 = players.get(i);
+            if (p1.getHealth() <= 0) continue;
+            for (int j = i + 1; j < players.size(); j++) {
+                Player p2 = players.get(j);
+                if (p2.getHealth() <= 0) continue;
+                int dist = distance(p1.getPosition(), p2.getPosition());
+                if (dist <= pairRange) {
+                    Float hp1Old = lastHpMap.get(p1.getId());
+                    Float hp2Old = lastHpMap.get(p2.getId());
+                    boolean p1LosingHp = hp1Old != null && p1.getHealth() < hp1Old;
+                    boolean p2LosingHp = hp2Old != null && p2.getHealth() < hp2Old;
+
+                    if (p1LosingHp || p2LosingHp) {
+                        boolean p1Weak = p1.getHealth() <= lowHpThreshold;
+                        boolean p2Weak = p2.getHealth() <= lowHpThreshold;
+                        if (p1Weak && !added.contains(p1.getId())) {
+                            finishTargets.add(p1);
+                            added.add(p1.getId());
+                            System.out.println("[MapManager] Player yếu máu trong giao tranh: " + p1.getId());
+                        }
+                        if (p2Weak && !added.contains(p2.getId())) {
+                            finishTargets.add(p2);
+                            added.add(p2.getId());
+                            System.out.println("[MapManager] Player yếu máu trong giao tranh: " + p2.getId());
+                        }
+                    }
+                }
+            }
+        }
+
+        // Nếu không phát hiện cặp giao tranh, kiểm tra trường hợp chỉ còn 1 người yếu máu ở gần
+        if (finishTargets.isEmpty() && players.size() == 1) {
+            Player p = players.get(0);
+            if (p.getHealth() > 0 && p.getHealth() <= lowHpThreshold) {
+                finishTargets.add(p);
+                System.out.println("[MapManager] Chỉ còn 1 player yếu máu: " + p.getId());
+            }
+        }
+
+        return finishTargets;
+    }
 }
