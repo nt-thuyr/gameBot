@@ -216,6 +216,17 @@ public class Main {
                     }
                 }
 
+                // Nếu có 2 players đấm nhau ở gần, đợi gần chết nhảy vào bú kill
+                List<Player> finishTargets = MapManager.detectCombatAndFinishTargets(gameMap, 25, 2);
+                Node myPos = gameMap.getCurrentPlayer().getPosition();
+                int attackRangeToBot = 4; // Ví dụ chỉ tấn công nếu giao tranh cách bot <= 4 ô
+
+                for (Player target : finishTargets) {
+                    if (distance(myPos, target.getPosition()) <= attackRangeToBot) {
+                        lockedTarget = target;
+                        movementSet(gameMap, hero, lockedTarget, currentHealth);
+                    }
+                }
 
                 // Ưu tiên tấn công kẻ địch ở gần và đủ khả năng tấn công thì tấn công
                 Player player = Attack.checkIfHasNearbyPlayer(gameMap, 3);
