@@ -218,6 +218,18 @@ public class Main {
                     }
                 }
 
+                // Ưu tiên 7: nếu có 2 players khác đanh đánh nhau ở gần, đợi gần chết nhảy vào bú kill
+                List<Player> finishTargets = MapManager.detectCombatAndFinishTargets(gameMap, 25, 2);
+                Node myPos = gameMap.getCurrentPlayer().getPosition();
+                int attackRangeToBot = 5; // Ví dụ chỉ tấn công nếu giao tranh cách bot <= 5 ô
+
+                for (Player target : finishTargets) {
+                    if (distance(myPos, target.getPosition()) <= attackRangeToBot) {
+                        lockedTarget = target;
+                        movementSet(gameMap, hero, lockedTarget, currentHealth);
+                    }
+                }
+
                 // Ưu tiên 7: nếu có kẻ địch ở gần và đủ khả năng tấn công thì tấn công
 //                System.out.println("=== CHECKING PRIORITY 7: PLAYER NEARBY ===");
                 Player player = Attack.checkIfHasNearbyPlayer(gameMap, 3);
