@@ -212,7 +212,7 @@ public class Main {
 
                 // Trên đường đi nếu dẫm phải item thì cứ swap
                 Element element = gameMap.getElementByIndex(gameMap.getCurrentPlayer().getX(), gameMap.getCurrentPlayer().getY());
-                if (element != null && (element instanceof Weapon || element instanceof SupportItem)) {
+                if ((element instanceof Weapon || element instanceof SupportItem)) {
                     ItemManager.swapItem(gameMap, hero);
                 }
 
@@ -238,7 +238,9 @@ public class Main {
                     }
                 }
 
+
                 // Ưu tiên tấn công locked target
+                updateLockedTarget(gameMap, hero, currentHealth);
                 if (lockedTarget != null) {
                     // Kiểm tra xem locked target có còn sống không
                     Player current = null;
@@ -269,7 +271,7 @@ public class Main {
                     }
                 }
 
-                // Ưu tiên tấn công kẻ địch ở gần và đủ khả năng tấn công thì tấn công
+                // Ưu tiên tấn công kẻ địch ở gần
                 Player player = Attack.checkIfHasNearbyPlayer(gameMap, 3);
                 if (player != null) {
                     lockedTarget = player;
@@ -605,5 +607,42 @@ public class Main {
         }
 
         return false;
+    }
+
+    // Update lockedTarget based on nearby players and current state
+    public static void updateLockedTarget(GameMap gameMap, Hero hero, float currentHealth) {
+        Node currentPosition = gameMap.getCurrentPlayer().getPosition();
+        Weapon gun = hero.getInventory().getGun();
+        Weapon throwable = hero.getInventory().getThrowable();
+
+        int checkRadius = 3;
+        if (throwable != null && gun != null) {
+            checkRadius = Math.max(throwable.getRange()[1], gun.getRange()[1]);
+        } else if (throwable != null) {
+            checkRadius = throwable.getRange()[1];
+        } else if (gun != null) {
+            checkRadius = gun.getRange()[1];
+        }
+
+        Player nearbyPlayer = Attack.checkIfHasNearbyPlayer(gameMap, checkRadius);
+
+        // If lockedTarget is dead or null, update to nearbyPlayer
+        if (lockedTarget == null || lockedTarget.getHealth() <= 0) {
+            lockedTarget = nearbyPlayer;
+            return;
+        }
+
+        // If a new nearby player is weaker or closer, update lockedTarget
+        if (nearbyPlayer != null && !lockedTarget.equals(nearbyPlayer)) {
+            if (lockedTarget.getHealth() > nearbyPlayer.getHealth()) {
+                lockedTarget = nearbyPlayer;
+            } else if (lockedTarget.getHealth().equals(nearbyPlayer.getHealth())) {
+                Node lockedPos = lockedTarget.getPosition();
+                Node nearPos = nearbyPlayer.getPosition();
+                if (distance(currentPosition, lockedPos) > distance(currentPosition, nearPos)) {
+                    lockedTarget = nearbyPlayer;
+                }
+            }
+        }
     }
 }
