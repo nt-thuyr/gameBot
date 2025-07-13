@@ -5,13 +5,11 @@ import jsclub.codefest.sdk.model.Element;
 import jsclub.codefest.sdk.model.ElementType;
 import jsclub.codefest.sdk.model.GameMap;
 import jsclub.codefest.sdk.Hero;
-import jsclub.codefest.sdk.model.Inventory;
 import jsclub.codefest.sdk.model.npcs.Enemy;
 import jsclub.codefest.sdk.model.obstacles.Obstacle;
 import jsclub.codefest.sdk.model.players.Player;
 import jsclub.codefest.sdk.model.support_items.SupportItem;
 import jsclub.codefest.sdk.model.weapon.Weapon;
-
 import java.io.IOException;
 import java.util.*;
 
@@ -19,7 +17,7 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "190246";
+    private static final String GAME_ID = "115395";
     private static final String PLAYER_NAME = "botable";
     private static final String SECRET_KEY = "sk-9tCiKF60Sxi0KVc1ZtiQdw:mGiTucg2md7pM_jn7C19ZKq_KTUJIhBlnOUYLE5mEgH42V86LMruay6aH7TnYe1m_MmCok6c3KiTWJS0IjkJBg";
 
@@ -209,7 +207,12 @@ public class Main {
                         lastChestPosition = null; // Không còn item quanh, reset
                     }
                 }
-
+                
+                // Trên đường đi nếu dẫm phải item thì cứ swap
+                Element element = gameMap.getElementByIndex(gameMap.getCurrentPlayer().getX(), gameMap.getCurrentPlayer().getY());
+                if (element != null && (element instanceof Weapon || element instanceof SupportItem)) {
+                    ItemManager.swapItem(gameMap, hero);
+                }
 
                 // Nếu không vũ khí yếu, không có locked target hoặc locked target máu cao hơn mình, ưu tiên nhặt vũ khí
                 if (Attack.currentDamage(hero) < 15) {
