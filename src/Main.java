@@ -240,7 +240,7 @@ public class Main {
 
 
                 // Ưu tiên tấn công locked target
-                updateLockedTarget(gameMap, hero, currentHealth);
+                updateLockedTarget(gameMap, hero);
                 if (lockedTarget != null) {
                     // Kiểm tra xem locked target có còn sống không
                     Player current = null;
@@ -610,7 +610,7 @@ public class Main {
     }
 
     // Update lockedTarget based on nearby players and current state
-    public static void updateLockedTarget(GameMap gameMap, Hero hero, float currentHealth) {
+    public static void updateLockedTarget(GameMap gameMap, Hero hero) {
         Node currentPosition = gameMap.getCurrentPlayer().getPosition();
         Weapon gun = hero.getInventory().getGun();
         Weapon throwable = hero.getInventory().getThrowable();
