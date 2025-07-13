@@ -351,10 +351,11 @@ public class ItemManager {
         return true;
     }
 
-    public static Obstacle hasEgg(GameMap gameMap) {
+    public static Obstacle hasEgg(GameMap gameMap, int range) {
         List<Obstacle> obstacles = gameMap.getListObstacles();
         for (Obstacle chest : obstacles) {
-            if ("DRAGON_EGG".equals(chest.getId())) {
+            if ("DRAGON_EGG".equals(chest.getId()) &&
+                    distance(gameMap.getCurrentPlayer().getPosition(), chest.getPosition()) <= range) {
                 return chest; // Có ít nhất 1 quả trứng
             }
         }

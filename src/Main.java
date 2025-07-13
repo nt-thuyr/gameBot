@@ -17,7 +17,7 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "115395";
+    private static final String GAME_ID = "167300";
     private static final String PLAYER_NAME = "botable";
     private static final String SECRET_KEY = "sk-9tCiKF60Sxi0KVc1ZtiQdw:mGiTucg2md7pM_jn7C19ZKq_KTUJIhBlnOUYLE5mEgH42V86LMruay6aH7TnYe1m_MmCok6c3KiTWJS0IjkJBg";
 
@@ -33,6 +33,7 @@ public class Main {
 
     static Node retreatTarget = null;
     static int lastDensityCheck = 0;
+    static int mapTime = 600;
 
     public static void main(String[] args) throws IOException {
         Hero hero = new Hero(GAME_ID, PLAYER_NAME, SECRET_KEY);
@@ -132,7 +133,7 @@ public class Main {
 
                 // 45 giây cuối
                 List<SupportItem> supportItems = hero.getInventory().getListSupportItem();
-                if (gameMap.getStepNumber() >= 510 && gameMap.getStepNumber() <= 600) {
+                if (gameMap.getStepNumber() >= mapTime - 90 && gameMap.getStepNumber() <= mapTime) {
                     // Nếu trong người có support item thì tấn công người chơi yếu máu hơn gần nhất
                     if (!supportItems.isEmpty()) {
                         Player weakestPlayer = Attack.findWeakestPlayer(gameMap, 7, currentPosition);
@@ -167,8 +168,8 @@ public class Main {
                 }
 
                 // Ưu tiên hồi máu nếu máu dưới 80% và không có locked target hoặc locked target máu cao hơn mình
-                if (currentHealth < maxHealth * 0.8f && (lockedTarget == null || lockedTarget.getHealth() > currentHealth + 10)) {
-                    if (Health.healByAlly(gameMap, hero)) {
+                if (currentHealth <= maxHealth * 0.8f && (lockedTarget == null || lockedTarget.getHealth() > currentHealth + 10)) {
+                    if (Health.healByAlly(gameMap, hero, 5)) { // Ally ở gần thì chạy tới, xa thì dùng suppportitem luôn
                         return;
                     } else {
                         Element healingItem = Health.findBestHealingItem(hero.getInventory().getListSupportItem(), maxHealth - currentHealth);
@@ -185,8 +186,9 @@ public class Main {
                 }
 
                 // Ưu tiên mở trứng nếu có trứng bất kể vị trí
-                Obstacle targetEgg = ItemManager.hasEgg(gameMap);
-                if (targetEgg != null && (lockedTarget == null || lockedTarget.getHealth() > currentHealth + 10)) {
+                Obstacle targetEgg = ItemManager.hasEgg(gameMap, 15);
+                if (targetEgg != null && (lockedTarget == null || lockedTarget.getHealth() > currentHealth + 10) &&
+                        checkInsideSafeArea(targetEgg.getPosition(), safeZone, mapSize)) {
                     System.out.println("Đã tìm thấy trứng: " + targetEgg.getId() + ", vị trí: " + targetEgg.getPosition());
                     lastChestPosition = targetEgg.getPosition();
                     lastChest = targetEgg;
@@ -207,7 +209,7 @@ public class Main {
                         lastChestPosition = null; // Không còn item quanh, reset
                     }
                 }
-                
+
                 // Trên đường đi nếu dẫm phải item thì cứ swap
                 Element element = gameMap.getElementByIndex(gameMap.getCurrentPlayer().getX(), gameMap.getCurrentPlayer().getY());
                 if (element != null && (element instanceof Weapon || element instanceof SupportItem)) {
@@ -349,7 +351,7 @@ public class Main {
             }
 
             SupportItem healingItem = Health.findBestHealingItem(hero.getInventory().getListSupportItem(), maxHealth - currentHealth);
-            if (currentHealth < maxHealth * 0.8f && healingItem != null) {
+            if (currentHealth <= maxHealth * 0.8f && healingItem != null) {
                 hero.useItem(healingItem.getId());
                 return;
             }
@@ -566,7 +568,7 @@ public class Main {
         boolean isCurrentAreaCrowded = MapManager.isCurrentAreaCrowded(gameMap, 1);
 
         // Quyết định có nên retreat không
-        if (currentHealth < maxHealth * 0.25f && isCurrentAreaCrowded && (lockedTarget == null || lockedTarget.getHealth() > currentHealth)) {
+        if (currentHealth <= maxHealth * 0.25f && isCurrentAreaCrowded && (lockedTarget == null || lockedTarget.getHealth() > currentHealth)) {
             retreatTarget = MapManager.findSafestNearbyArea(gameMap);
             System.out.println("Chế độ RETREAT: Máu ít + khu vực đông người");
         }

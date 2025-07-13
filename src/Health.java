@@ -69,8 +69,8 @@ public class Health {
         }
     }
 
-    static boolean healByAlly(GameMap gameMap, Hero hero) {
-        Node allyNode = checkIfHasNearbyAlly(gameMap, 8);
+    static boolean healByAlly(GameMap gameMap, Hero hero, int range) {
+        Node allyNode = checkIfHasNearbyAlly(gameMap, range);
         if (allyNode != null) {
             System.out.println("Đã tìm thấy ally ở gần");
             moveToAlly(gameMap, allyNode, hero);
