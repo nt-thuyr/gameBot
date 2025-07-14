@@ -256,7 +256,7 @@ public class Attack {
             return false;
         }
 
-        WeaponOption best = options.get(0);
+        WeaponOption best = options.getFirst();
         switch (best.type) {
             case "gun":
                 hero.shoot(direction);
