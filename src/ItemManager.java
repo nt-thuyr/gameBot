@@ -89,14 +89,14 @@ public class ItemManager {
                 if (supportItems.size() >= MAX_SUPPORT_ITEMS && existingSupportItem != null) {
                     // Nếu đã đủ 4 item, chỉ bỏ item cũ, KHÔNG nhặt luôn trong lượt này
                     try {
-                        hero.revokeItem(existingSupportItem.getId());
+                        hero.useItem(existingSupportItem.getId());
                         if ("COMPASS".equals(existingSupportItem.getId())) {
                             compassNum--;
                         }
                     } catch (IOException e) {
                         System.out.println("Lỗi khi bỏ support item: " + e.getMessage());
                     }
-                    System.out.println("Đã bỏ " + existingSupportItem.getId() + ", chờ lượt sau nhặt " + supportItem.getId());
+                    System.out.println("Đã dùng " + existingSupportItem.getId() + ", chờ lượt sau nhặt " + supportItem.getId());
                 } else {
                     // Nếu chưa đủ 4 item thì nhặt luôn
                     try {
@@ -250,7 +250,7 @@ public class ItemManager {
 
         if (distance(currentPosition, targetChestNode) > 1) {
             try {
-                Main.moveToTarget(hero, targetChestNode, gameMap);
+                Main.moveToTarget(hero, targetChestNode, gameMap, true);
             } catch (InterruptedException e) {
                 System.out.println("Lỗi khi di chuyển đến rương kho báu: " + e.getMessage());
             }
@@ -300,7 +300,7 @@ public class ItemManager {
                 System.out.println("Đã nhặt/lấy item tại vị trí hiện tại: " + bestItem.getId());
             } else {
                 try {
-                    Main.moveToTarget(hero, bestPos, gameMap);
+                    Main.moveToTarget(hero, bestPos, gameMap, true);
                 } catch (IOException | InterruptedException e) {
                     System.out.println("Lỗi khi di chuyển đến item: " + e.getMessage());
                 }
@@ -347,7 +347,7 @@ public class ItemManager {
         if (distance(currentPosition, nearestNode) > 0) {
             // Nếu không đứng trên vũ khí, di chuyển đến vị trí vũ khí
             System.out.println("Đang di chuyển đến vũ khí gần nhất: " + nearestWeapon.getId() + " tại " + nearestNode);
-            Main.moveToTarget(hero, nearestNode, gameMap);
+            Main.moveToTarget(hero, nearestNode, gameMap, true);
         } else {
             // Nếu đã đứng trên vị trí vũ khí thì nhặt luôn, không di chuyển
             ItemManager.swapItem(gameMap, hero);

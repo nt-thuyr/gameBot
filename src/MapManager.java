@@ -291,7 +291,7 @@ public class MapManager {
 
         if (best != null) {
             System.out.println("Đang ở ngoài bo, di chuyển đến điểm an toàn gần trung tâm: " + best);
-            Main.moveToTarget(hero, best, gameMap);
+            Main.moveToTarget(hero, best, gameMap, false);
         } else {
             System.out.println("Không tìm thấy điểm an toàn nào phù hợp trong bo!");
         }
