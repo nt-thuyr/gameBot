@@ -11,6 +11,7 @@ import jsclub.codefest.sdk.model.support_items.SupportItem;
 import jsclub.codefest.sdk.model.weapon.Weapon;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -204,125 +205,81 @@ public class Attack {
         Weapon melee = hero.getInventory().getMelee();
         Weapon special = hero.getInventory().getSpecial();
 
-        boolean attacked = false;
-
-        // Ném vật phẩm nếu trong tầm và hết cooldown
-        if (isInsideRange(gameMap, throwable, currentPosition, targetNode, direction)
-                && gameMap.getStepNumber() - lastThrowStep >= throwable.getCooldown()) {
-            hero.throwItem(direction);
-            System.out.println("Ném vật phẩm về hướng " + direction);
-            lastThrowStep = gameMap.getStepNumber();
-            attacked = true;
+        // Weapon, type, lastUsedStep
+        class WeaponOption {
+            Weapon weapon;
+            String type;
+            long lastUsedStep;
+            WeaponOption(Weapon w, String t, long l) { weapon = w; type = t; lastUsedStep = l; }
         }
 
-        // Dùng vũ khí đặc biệt nếu trong tầm và hết cooldown
-        if (isInsideRange(gameMap, special, currentPosition, targetNode, direction)
-                && gameMap.getStepNumber() - lastSpecialStep >= special.getCooldown()) {
-            // Không sử dụng rope với kẻ địch ở gần
-            if ((special.getId().equals("ROPE") && distance(currentPosition, targetNode) > 2 &&
-                    (gun.getId().equals("SHOTGUN") || melee.getDamage() >= 40)) ||
-                    !special.getId().equals("ROPE")) {
-                hero.useSpecial(direction);
-                System.out.println("Dùng vũ khí đặc biệt về hướng " + direction);
-                lastSpecialStep = gameMap.getStepNumber();
-                attacked = true;
-            }
-        }
-
-        // Bắn súng nếu trong tầm và hết cooldown
+        List<WeaponOption> options = new ArrayList<>();
         if (isInsideRange(gameMap, gun, currentPosition, targetNode, direction)
                 && gameMap.getStepNumber() - lastShotStep >= gun.getCooldown()) {
-            hero.shoot(direction);
-            System.out.println("Bắn súng về hướng " + direction);
-            lastShotStep = gameMap.getStepNumber();
-            attacked = true;
+            options.add(new WeaponOption(gun, "gun", lastShotStep));
         }
-
-        // Tấn công cận chiến nếu trong tầm và hết cooldown
-        // Nếu trong tầm cận chiến mà không có vũ khí cận chiến thì sao?
+        if (isInsideRange(gameMap, throwable, currentPosition, targetNode, direction)
+                && gameMap.getStepNumber() - lastThrowStep >= throwable.getCooldown()) {
+            options.add(new WeaponOption(throwable, "throwable", lastThrowStep));
+        }
+        if (isInsideRange(gameMap, special, currentPosition, targetNode, direction)
+                && gameMap.getStepNumber() - lastSpecialStep >= special.getCooldown()) {
+            // Rope logic: only use if not too close, or if not rope
+            if ((special.getId().equals("ROPE") && distance(currentPosition, targetNode) > 2 &&
+                    (gun != null && gun.getId().equals("SHOTGUN") || (melee != null && melee.getDamage() >= 40)))
+                    || !special.getId().equals("ROPE")) {
+                options.add(new WeaponOption(special, "special", lastSpecialStep));
+            }
+        }
         if (isInsideRange(gameMap, melee, currentPosition, targetNode, direction)
                 && gameMap.getStepNumber() - lastMeleeStep >= melee.getCooldown()) {
-            // Nếu không có vũ khí cận chiến thì sử dụng vũ khí khác
-            if ("HAND".equals(melee.getId())) {
-                // Ném vật phẩm nếu trong tầm và hết cooldown
-                if (isInsideRange(gameMap, throwable, currentPosition, targetNode, direction)
-                        && gameMap.getStepNumber() - lastThrowStep >= throwable.getCooldown()) {
-                    hero.throwItem(direction);
-                    System.out.println("Ném vật phẩm về hướng " + direction);
-                    lastThrowStep = gameMap.getStepNumber();
-                    attacked = true;
-                }
-                // Dùng vũ khí đặc biệt nếu trong tầm và hết cooldown
-                else if (isInsideRange(gameMap, special, currentPosition, targetNode, direction)
-                        && gameMap.getStepNumber() - lastSpecialStep >= special.getCooldown()) {
-                    // Không sử dụng rope với kẻ địch ở gần
-                    if ((special.getId().equals("ROPE") && distance(currentPosition, targetNode) > 2 &&
-                            (gun.getId().equals("SHOTGUN") || melee.getDamage() >= 40)) ||
-                            !special.getId().equals("ROPE")) {
-                        hero.useSpecial(direction);
-                        System.out.println("Dùng vũ khí đặc biệt về hướng " + direction);
-                        lastSpecialStep = gameMap.getStepNumber();
-                        attacked = true;
-                    }
-                }
-                // Bắn súng nếu trong tầm và hết cooldown
-                else if (isInsideRange(gameMap, gun, currentPosition, targetNode, direction)
-                        && gameMap.getStepNumber() - lastShotStep >= gun.getCooldown()) {
-                    hero.shoot(direction);
-                    System.out.println("Bắn súng về hướng " + direction);
-                    lastShotStep = gameMap.getStepNumber();
-                    attacked = true;
-                }
-                // Nếu không còn vũ khí nào khác
-                else {
-                    hero.attack(direction);
-                    System.out.println("Tấn công cận chiến về hướng " + direction);
-                    lastMeleeStep = gameMap.getStepNumber();
-                    attacked = true;
-                }
-            }
-            // Nếu có vũ khí cận chiến
-            else {
+            options.add(new WeaponOption(melee, "melee", lastMeleeStep));
+        }
+
+        // Sort by damage desc, then cooldown desc
+        options.sort((a, b) -> {
+            int cmp = Integer.compare(b.weapon.getDamage(), a.weapon.getDamage());
+            if (cmp == 0) cmp = Double.compare(b.weapon.getCooldown(), a.weapon.getCooldown());
+            return cmp;
+        });
+
+        if (options.isEmpty()) {
+            // If only have HAND, fallback to normal attack
+            if (melee != null && "HAND".equals(melee.getId()) &&
+                isInsideRange(gameMap, melee, currentPosition, targetNode, direction) &&
+                gameMap.getStepNumber() - lastMeleeStep >= melee.getCooldown()) {
                 hero.attack(direction);
                 System.out.println("Tấn công cận chiến về hướng " + direction);
                 lastMeleeStep = gameMap.getStepNumber();
-                attacked = true;
-
-                // Ném vật phẩm nếu trong tầm và hết cooldown
-                if (isInsideRange(gameMap, throwable, currentPosition, targetNode, direction)
-                        && gameMap.getStepNumber() - lastThrowStep >= throwable.getCooldown()) {
-                    hero.throwItem(direction);
-                    System.out.println("Ném vật phẩm về hướng " + direction);
-                    lastThrowStep = gameMap.getStepNumber();
-                    attacked = true;
-                }
-
-                // Dùng vũ khí đặc biệt nếu trong tầm và hết cooldown
-                if (isInsideRange(gameMap, special, currentPosition, targetNode, direction)
-                        && gameMap.getStepNumber() - lastSpecialStep >= special.getCooldown()) {
-                    // Không sử dụng rope với kẻ địch ở gần
-                    if ((special.getId().equals("ROPE") && distance(currentPosition, targetNode) > 2 &&
-                            (gun.getId().equals("SHOTGUN") || melee.getDamage() >= 40)) ||
-                            !special.getId().equals("ROPE")) {
-                        hero.useSpecial(direction);
-                        System.out.println("Dùng vũ khí đặc biệt về hướng " + direction);
-                        lastSpecialStep = gameMap.getStepNumber();
-                        attacked = true;
-                    }
-                }
-
-                // Bắn súng nếu trong tầm và hết cooldown
-                if (isInsideRange(gameMap, gun, currentPosition, targetNode, direction)
-                        && gameMap.getStepNumber() - lastShotStep >= gun.getCooldown()) {
-                    hero.shoot(direction);
-                    System.out.println("Bắn súng về hướng " + direction);
-                    lastShotStep = gameMap.getStepNumber();
-                    attacked = true;
-                }
+                return true;
             }
+            return false;
         }
 
-        return attacked; // Trả về true nếu tấn công thành công bằng 1 vũ khí
+        WeaponOption best = options.get(0);
+        switch (best.type) {
+            case "gun":
+                hero.shoot(direction);
+                lastShotStep = gameMap.getStepNumber();
+                System.out.println("Bắn súng về hướng " + direction);
+                break;
+            case "throwable":
+                hero.throwItem(direction);
+                lastThrowStep = gameMap.getStepNumber();
+                System.out.println("Ném vật phẩm về hướng " + direction);
+                break;
+            case "special":
+                hero.useSpecial(direction);
+                lastSpecialStep = gameMap.getStepNumber();
+                System.out.println("Dùng vũ khí đặc biệt về hướng " + direction);
+                break;
+            case "melee":
+                hero.attack(direction);
+                lastMeleeStep = gameMap.getStepNumber();
+                System.out.println("Tấn công cận chiến về hướng " + direction);
+                break;
+        }
+        return true;
     }
 
      // Kiểm tra xem có player nào gần vị trí hiện tại không

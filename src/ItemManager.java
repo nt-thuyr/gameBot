@@ -18,6 +18,10 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class ItemManager {
 
+    static int compassNum = 0; // Đếm số la bàn trong inventory
+    static final int MAX_COMPASS = 2; // Giới hạn số la bàn có thể mang
+    static final int MAX_SUPPORT_ITEMS = 4; // Giới hạn số support item có thể mang
+
     // Kiểm tra chỉ số của item xem có nên nhặt không
     static boolean pickupable(Hero hero, Element item) {
         Inventory inventory = hero.getInventory();
@@ -56,9 +60,13 @@ public class ItemManager {
         int minHealingHP = 0;
         SupportItem minSupportItem = null;
 
-        if (inventory.getListSupportItem().size() >= 4) {
+        if (inventory.getListSupportItem().size() >= MAX_SUPPORT_ITEMS) {
             for (SupportItem invSupportItem : inventory.getListSupportItem()) {
-                if ("COMPASS".equals(invSupportItem.getId()) || "MAGIC".equals(invSupportItem.getId())) {
+                if ("COMPASS".equals(invSupportItem.getId())) {
+                    if (compassNum <= MAX_COMPASS) {
+                        continue; // chỉ cần tối đa MAX_COMPASS (2) trong inventory
+                    }
+                } else if ("MAGIC".equals(invSupportItem.getId())) {
                     continue;
                 }
                 if (item.getHealingHP() < invSupportItem.getHealingHP() && invSupportItem.getHealingHP() > minHealingHP) {
@@ -78,10 +86,13 @@ public class ItemManager {
             case SupportItem supportItem -> {
                 SupportItem existingSupportItem = pickupable(hero, supportItem);
                 List<SupportItem> supportItems = hero.getInventory().getListSupportItem();
-                if (supportItems.size() >= 4 && existingSupportItem != null) {
+                if (supportItems.size() >= MAX_SUPPORT_ITEMS && existingSupportItem != null) {
                     // Nếu đã đủ 4 item, chỉ bỏ item cũ, KHÔNG nhặt luôn trong lượt này
                     try {
                         hero.revokeItem(existingSupportItem.getId());
+                        if ("COMPASS".equals(existingSupportItem.getId())) {
+                            compassNum--;
+                        }
                     } catch (IOException e) {
                         System.out.println("Lỗi khi bỏ support item: " + e.getMessage());
                     }
@@ -90,6 +101,9 @@ public class ItemManager {
                     // Nếu chưa đủ 4 item thì nhặt luôn
                     try {
                         hero.pickupItem();
+                        if ("COMPASS".equals(supportItem.getId())) {
+                            compassNum++;
+                        }
                     } catch (IOException e) {
                         System.out.println("Lỗi khi nhặt support item: " + e.getMessage());
                     }
@@ -234,14 +248,6 @@ public class ItemManager {
         Player player = gameMap.getCurrentPlayer();
         Node currentPosition = player.getPosition();
 
-        Weapon specialWeapon = hero.getInventory().getSpecial();
-        if (specialWeapon != null && specialWeapon.getId().equals("ROPE")) {
-            String direction = Main.getDirection(currentPosition, targetChestNode);
-            if (distance(currentPosition, targetChestNode) > 3 && Attack.isInsideRange(gameMap, specialWeapon, currentPosition, targetChestNode, direction)) {
-                hero.useSpecial(direction);
-            }
-        }
-
         if (distance(currentPosition, targetChestNode) > 1) {
             try {
                 Main.moveToTarget(hero, targetChestNode, gameMap);
@@ -276,7 +282,7 @@ public class ItemManager {
             if (dist <= lootRadius) {
                 // Kiểm tra có thể nhặt
                 if (ItemManager.pickupable(hero, item) ||
-                        (item instanceof SupportItem && (hero.getInventory().getListSupportItem().size() < 4 || ItemManager.pickupable(hero, (SupportItem)item)!=null))) {
+                        (item instanceof SupportItem && (hero.getInventory().getListSupportItem().size() < MAX_SUPPORT_ITEMS || ItemManager.pickupable(hero, (SupportItem)item)!=null))) {
                     // Ưu tiên item gần nhất trong vùng
                     if (dist < minDist) {
                         minDist = dist;

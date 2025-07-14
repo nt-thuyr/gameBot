@@ -17,7 +17,7 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "167300";
+    private static final String GAME_ID = "107057";
     private static final String PLAYER_NAME = "botable";
     private static final String SECRET_KEY = "sk-9tCiKF60Sxi0KVc1ZtiQdw:mGiTucg2md7pM_jn7C19ZKq_KTUJIhBlnOUYLE5mEgH42V86LMruay6aH7TnYe1m_MmCok6c3KiTWJS0IjkJBg";
 
@@ -26,14 +26,13 @@ public class Main {
     static Player lockedTarget = null;
     static final float maxHealth = 100.0f; // Máu tối đa khởi đầu của player
     static int lootRadius = 2; // Bán kính loot đồ xung quanh player
-
+    private static int lastRetreatStep = -100; // Lưu bước cuối cùng đã thực hiện retreat
     static EnemyTrajectoryCollector collector = new EnemyTrajectoryCollector();
     static String lastPath = null; // Lưu đường đi gần nhất
     static boolean isFollowingAlly = false; // Biến để theo dõi trạng thái bám theo ally
-
     static Node retreatTarget = null;
     static int lastDensityCheck = 0;
-    static int mapTime = 600;
+    static int mapTime = 1200; // Thời gian của bản đồ: n step -> n/2 s
 
     public static void main(String[] args) throws IOException {
         Hero hero = new Hero(GAME_ID, PLAYER_NAME, SECRET_KEY);
@@ -564,22 +563,6 @@ public class Main {
         System.out.println("Moved 1 step " + step + " towards target: " + gameMap.getElementByIndex(targetNode.x, targetNode.y).getId());
     }
 
-    // Hàm phân tích và cập nhật chiến thuật
-    private static void analyzeAndUpdateStrategy(GameMap gameMap, float currentHealth) {
-
-        boolean isCurrentAreaCrowded = MapManager.isCurrentAreaCrowded(gameMap, 1);
-
-        // Quyết định có nên retreat không
-        if (currentHealth <= maxHealth * 0.25f && isCurrentAreaCrowded && (lockedTarget == null || lockedTarget.getHealth() > currentHealth)) {
-            retreatTarget = MapManager.findSafestNearbyArea(gameMap);
-            System.out.println("Chế độ RETREAT: Máu ít + khu vực đông người");
-        }
-        // Chế độ bình thường
-        else {
-            retreatTarget = null;
-        }
-    }
-
     // Thực hiện retreat
     private static boolean executeRetreat(GameMap gameMap, Hero hero) {
         if (retreatTarget == null) return false;
@@ -642,6 +625,25 @@ public class Main {
                 if (distance(currentPosition, lockedPos) > distance(currentPosition, nearPos)) {
                     lockedTarget = nearbyPlayer;
                 }
+            }
+        }
+    }
+
+    private static void analyzeAndUpdateStrategy(GameMap gameMap, float currentHealth) {
+        boolean isCurrentAreaCrowded = MapManager.isCurrentAreaCrowded(gameMap, 1);
+
+        // Add cooldown: only allow retreat every 10 steps
+        if (currentHealth <= maxHealth * 0.25f && isCurrentAreaCrowded &&
+            (lockedTarget == null || lockedTarget.getHealth() > currentHealth) &&
+            gameMap.getStepNumber() - lastRetreatStep > 10) {
+            retreatTarget = MapManager.findSafestNearbyArea(gameMap, currentHealth);
+            lastRetreatStep = gameMap.getStepNumber();
+            System.out.println("RETREAT MODE: Low health + crowded area");
+        } else if (retreatTarget != null) {
+            // If already retreating, check if area is still safe
+            if (!MapManager.isCurrentAreaCrowded(gameMap, 1) || currentHealth > maxHealth * 0.5f) {
+                System.out.println("Safe or healed, exit retreat mode");
+                retreatTarget = null;
             }
         }
     }

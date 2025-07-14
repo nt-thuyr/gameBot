@@ -86,30 +86,33 @@ public class MapManager {
     /**
      * Tìm khu vực ít người và gần nhất (để retreat)
      */
-    public static Node findSafestNearbyArea(GameMap gameMap) {
+// src/MapManager.java
+    public static Node findSafestNearbyArea(GameMap gameMap, float currentHealth) {
         Map<String, AreaInfo> areaMap = analyzeMapDensity(gameMap);
-
         AreaInfo bestArea = null;
-        double bestScore = -1;
+        double bestScore = -Double.MAX_VALUE;
 
         for (AreaInfo area : areaMap.values()) {
-            // Chỉ xét khu vực không quá xa
             if (area.distance > 20) continue;
 
             double score = 0;
+            // Stronger penalty for distance if health is low
+            double distWeight = currentHealth < 30 ? 0.3 : 0.1;
+            score -= area.distance * distWeight;
 
-            // Điểm thưởng cho khu vực ít người
+            // Avoid areas with strong players
+            boolean hasStrong = area.playersInArea.stream().anyMatch(p -> p.getHealth() > 80);
+            if (hasStrong) score -= 20;
+
+            // Fewer players = better
             if (area.playerCount == 0) score += 20;
             else if (area.playerCount == 1) score += 10;
             else score -= area.playerCount * 5;
 
-            // Trừ điểm cho khoảng cách (ưu tiên gần hơn)
-            score -= area.distance * 0.1;
-
-            // Trừ điểm cho mức độ nguy hiểm
+            // Danger level
             score -= area.dangerLevel * 15;
 
-            // Bonus nhỏ cho có rương/trứng (nhưng không ưu tiên lắm khi retreat)
+            // Bonus for chests/eggs
             if (area.hasChest) score += 2;
             if (area.hasEgg) score += 3;
 
@@ -118,7 +121,6 @@ public class MapManager {
                 bestArea = area;
             }
         }
-
         return bestArea != null ? new Node(bestArea.x, bestArea.y) : null;
     }
 
@@ -295,7 +297,7 @@ public class MapManager {
         }
     }
 
-    private static Map<String, Float> lastHpMap = new HashMap<>();
+    private static final Map<String, Float> lastHpMap = new HashMap<>();
 
     /**
      * Nhận biết player yếu máu trong các cặp giao chiến ở gần.
