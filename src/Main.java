@@ -17,7 +17,7 @@ import static jsclub.codefest.sdk.algorithm.PathUtils.*;
 
 public class Main {
     private static final String SERVER_URL = "https://cf25-server.jsclub.dev";
-    private static final String GAME_ID = "163121";
+    private static final String GAME_ID = "111091";
     private static final String PLAYER_NAME = "botable";
     private static final String SECRET_KEY = "sk-BbXSmc7WSxisry8MS8RkHg:Z7xhZs3QIEF5iYHB-cRIFP11v5aS_6aMJd_DN-DDhk2lLmPw9JY6O9UzDwo7CPfDVf5KYwXWJ4rZxsASq0QXmw";
 

@@ -140,7 +140,7 @@ public class Health {
         // Sau khi sử dụng thì target đến player gần nhất
         // Hiệu ứng: làm choáng player trong 9*9
         if (supportItemInv.stream().anyMatch(item -> item.getId().equals("COMPASS"))) {
-            if (MapManager.isCurrentAreaCrowded(gameMap, 2) && (Main.lockedTarget == null || Main.lockedTarget.getHealth() > currentHealth)) {
+            if (MapManager.isCurrentAreaCrowded(gameMap, 1) && (Main.lockedTarget == null || Main.lockedTarget.getHealth() >= currentHealth)) {
                 if (gameMap.getStepNumber() > lastUsedCompass + 10) {
                     try {
                         hero.useItem("COMPASS");

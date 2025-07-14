@@ -69,9 +69,11 @@ public class ItemManager {
                 } else if ("MAGIC".equals(invSupportItem.getId())) {
                     continue;
                 }
-                if (item.getHealingHP() < invSupportItem.getHealingHP() && invSupportItem.getHealingHP() > minHealingHP) {
-                    minSupportItem = invSupportItem;
-                    minHealingHP = invSupportItem.getHealingHP();
+                if (item.getHealingHP() > invSupportItem.getHealingHP() || item.getId().equals("MAGIC") || (item.getId().equals("COMPASS") && compassNum < MAX_COMPASS)) {
+                    if (invSupportItem.getHealingHP() < minHealingHP) {
+                        minSupportItem = invSupportItem;
+                        minHealingHP = invSupportItem.getHealingHP();
+                    }
                 }
             }
         }
