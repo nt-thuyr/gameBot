@@ -211,13 +211,14 @@ public class Main {
 
                 // Trên đường đi nếu dẫm phải item thì cứ swap
                 Element element = gameMap.getElementByIndex(gameMap.getCurrentPlayer().getX(), gameMap.getCurrentPlayer().getY());
-                if ((element instanceof Weapon || element instanceof SupportItem)) {
+                if ((element instanceof Weapon || element instanceof SupportItem) && ItemManager.pickupable(hero, element)) {
                     ItemManager.swapItem(gameMap, hero);
                 }
 
                 // Nếu không vũ khí yếu, không có locked target hoặc locked target máu cao hơn mình, ưu tiên nhặt vũ khí
                 if (Attack.currentDamage(hero) < 15) {
-                    if (lockedTarget == null || lockedTarget.getHealth() > currentHealth + 10) {
+                    if (lockedTarget == null ||
+                            (lockedTarget.getHealth() > currentHealth + 10 && distance(currentPosition, lockedTarget.getPosition()) > 10)) {
                         System.out.println("Không có vũ khí hoặc locked target máu cao hơn, ưu tiên nhặt vũ khí.");
                         Obstacle nearChest = ItemManager.checkIfHasChest(gameMap, 5);
                         if (nearChest != null) {
@@ -454,6 +455,7 @@ public class Main {
         return "d"; // fallback
     }
 
+    static int lastPathStep = -1;
     // Di chuyển đến mục tiêu
     public static void moveToTarget(Hero hero, Node targetNode, GameMap gameMap) throws IOException, InterruptedException {
         if (targetNode == null) {
@@ -478,7 +480,8 @@ public class Main {
 
          if (path == null || path.isEmpty()) {
              System.out.println("Không tìm thấy đường đi đến mục tiêu!");
-             if (PathUtils.checkInsideSafeArea(targetNode, safeZone, mapSize) && lastPath != null && !lastPath.isEmpty()) {
+             if (checkInsideSafeArea(targetNode, safeZone, mapSize) && lastPath != null && !lastPath.isEmpty() &&
+                     lastPathStep > 0 && gameMap.getStepNumber() - lastPathStep <= 3) {
                  // Lấy bước tiếp theo từ lastPath
                  String nextStep = lastPath.substring(0, 1);
                  Node nextPos = null;
@@ -509,6 +512,7 @@ public class Main {
              }
          } else {
              lastPath = path;
+             lastPathStep = gameMap.getStepNumber();
          }
 
          if (path == null || path.isEmpty()) {
