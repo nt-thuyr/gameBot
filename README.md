@@ -1,7 +1,7 @@
 # JSClub Codefest Bot
 
 ## Overview
-This repository contains a Java bot for the JSClub Codefest game, designed to automate player actions such as movement, combat, item collection, and strategic decision-making. The bot interacts with the game server, processes map updates, and executes optimal actions based on the current game state.
+This repository contains a Java bot for the JSClub Codefest game, designed to automate player actions such as **movement**, **combat**, **item collection**, and **strategic decision-making**. The bot interacts with the game server, **processes map updates**, and **executes optimal actions** based on the current game state.
 
 ---
 
