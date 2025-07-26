@@ -17,13 +17,13 @@ This repository contains a Java bot for the JSClub Codefest game, designed to au
 
 ##  📁 Project Structure
     src/
-    ├── Main.java // Entry point and main loop
-    ├── MapManager.java // Danger analysis & movement planning
-    ├── ItemManager.java // Item detection and looting
-    ├── Attack.java // Combat and target selection
-    ├── Health.java // Healing and support logic
-    ├── EnemyTrajectoryCollector.java // Enemy movement prediction
-    └── jsclub/codefest/sdk/ // Game SDK models and utilities
+    ├── Main.java               # Entry point and main loop
+    ├── MapManager.java         # Danger analysis & movement planning
+    ├── ItemManager.java        # Item detection and looting
+    ├── Attack.java             # Combat and target selection
+    ├── Health.java             # Healing and support logic
+    ├── EnemyTrajectoryCollector.java  # Enemy movement prediction
+    └── jsclub/codefest/sdk/    # Game SDK models and utilities
 
 
 ---
