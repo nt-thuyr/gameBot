@@ -6,12 +6,12 @@ This repository contains a Java bot for the JSClub Codefest game, designed to au
 ---
 
 ##  🚀 Features
-- **Pathfinding**: Uses shortest path algorithms to navigate the map, avoiding obstacles, enemies, and unsafe zones.
+- **Pathfinding**: Uses shortest path algorithms (A*) to navigate the map, avoiding obstacles, enemies, and unsafe zones.
 - **Combat Logic**: Prioritizes attacking weak or nearby players, uses weapons and support items intelligently.
 - **Item Management**: Automatically loots nearby items, opens chests, and uses healing/support items when needed.
 - **Retreat Strategy**: Detects crowded or dangerous areas and retreats to safer zones when health is low
 - **Dynamic Targeting**: Locks onto targets based on proximity, health, and strategic value.
-- **Safe Zone Awareness**: KEnsures the bot stays within the safe zone and moves to safety when outside.
+- **Safe Zone Awareness**: Ensures the bot stays within the safe zone and moves to safety when outside.
 
 ---
 
@@ -57,7 +57,7 @@ This repository contains a Java bot for the JSClub Codefest game, designed to au
 
 ## 🧠 Key Algorithms
 
-- **Pathfinding**: Uses a shortest path algorithm (optionally A\*) to find optimal routes.
+- **Pathfinding**: Uses shortest path algorithm (optionally A\*) to find optimal routes.
 - **Danger Assessment**: Calculates area danger based on player density, enemy proximity, and obstacles.
 - **Fallback Logic**: If no path is found, uses a cached last path for safe fallback movement.
 
